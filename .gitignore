@@ -1,2 +1,8 @@
 .idea/
 .DS_Store
+
+# Chat specific files
+chat-server/chat.db
+
+# Node.js dependencies
+node_modules/

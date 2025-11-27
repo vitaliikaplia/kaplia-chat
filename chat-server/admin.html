@@ -195,7 +195,7 @@
 <div id="login-screen">
     <div class="login-box">
         <h2>Вхід в Адмінку</h2>
-        <input type="text" id="loginUser" value="vitaliikaplia" placeholder="Логін">
+        <input type="text" id="loginUser" value="" placeholder="Логін">
         <input type="password" id="loginPass" placeholder="Пароль">
         <button onclick="manualLogin()">Увійти</button>
     </div>
@@ -321,10 +321,13 @@
                 document.getElementById('login-screen').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'flex';
 
-                // Заповнюємо налаштування вебхука, якщо прийшли
+                // Заповнюємо налаштування вебхука та токена, якщо прийшли
                 if (data.webhookConfig) {
                     document.getElementById('webhookUrl').value = data.webhookConfig.url;
                     document.getElementById('webhookEnabled').checked = !!data.webhookConfig.enabled;
+                }
+                if (data.apiToken) {
+                    document.getElementById('newToken').value = data.apiToken;
                 }
                 return;
             }

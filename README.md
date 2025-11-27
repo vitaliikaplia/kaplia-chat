@@ -1,18 +1,23 @@
-# Live Chat Widget
+# Kaplia Chat Widget (Working with WebSockets)
 
 A complete, self-hosted live chat solution built with Node.js and WebSockets. It includes a server, a client-side chat widget for your website, and an admin panel for support agents.
+
+## Project Overview
+
+This chat application is designed to be a lightweight, performant, and easily deployable live support tool for any website. It provides real-time, two-way communication between your website visitors and your support agents through a clean, modern interface. With a focus on simplicity and flexibility, it can be self-hosted on your own server, giving you full control over your data and infrastructure.
+
+The system is also built to be highly extensible, allowing for powerful integrations with automation platforms like **n8n**, CRMs, or other internal tools through its built-in REST API and Webhook support.
 
 ## Features
 
 - **Real-time Communication**: Instant message delivery using WebSockets.
-- **Admin Panel**: A dedicated interface for support agents to view and respond to user chats.
+- **Admin Panel**: A dedicated interface for support agents to view and respond to user chats, with options to manage credentials and settings.
 - **Simple Integration**: Easily add the chat widget to any website with a simple JavaScript snippet.
-- **REST API**: Programmatically send messages to users.
-- **Webhook Support**: Integrate with external systems (like a CRM or notification service) by receiving instant notifications for new messages.
-- **Secure**: Designed to work behind Nginx with SSL encryption.
+- **REST API & Webhooks**: Programmatically send messages and receive notifications for seamless integration with other services.
+- **Secure & Self-Hosted**: Run it on your own infrastructure under Nginx with SSL encryption for maximum privacy and control.
+- **Automation-Ready**: Perfectly suited for integration with platforms like n8n, Zapier, or Make.
 
 ---
-
 
 ## Server Installation and Setup
 
@@ -161,56 +166,138 @@ sudo ufw allow 'Nginx Full'
 sudo ufw enable
 ```
 
+### Initial Login Credentials
+
+For a fresh installation, the following default credentials are created. It is **highly recommended** to change these immediately after your first login via the Admin Panel.
+
+-   **Admin Username**: `admin`
+-   **Admin Password**: `1122334455667788`
+-   **Default API Token**: `MOJrnzS8pQyizRynxuuEJ98y8tPeJMg6`
+
 ---
 
+## Client-side Integration
 
-## API Documentation
+To integrate the chat widget into your website, simply include the `widget.js` script in your HTML. You can also customize its behavior and appearance by defining a `window.KapliaChatConfig` object before the script.
+
+### Basic HTML Integration
+
+Add the following snippet just before your closing `</body>` tag:
+
+```html
+<script>
+    window.KapliaChatConfig = {
+        defaultLanguage: 'en',
+        initialMessages: ['Hello! How can I help you today?'],
+        i18n: {
+            en: {
+                title: 'Live Chat 👋',
+                subtitle: 'We are here to help!',
+                inputPlaceholder: 'Type your question..',
+                sendBtn: 'Send'
+            },
+            ua: {
+                title: 'Онлайн підтримка 👋',
+                subtitle: 'Ми готові допомогти!',
+                inputPlaceholder: 'Введіть своє запитання..',
+                sendBtn: 'Надіслати'
+            }
+        },
+        metadata: {
+            // Optional: User data to send with messages
+            user_id: 'guest_123',
+            user_name: 'Guest User',
+            user_email: 'guest@example.com'
+        }
+    };
+</script>
+<script src="https://chat.yourdomain.com/widget.js"></script>
+```
+
+*Note: Replace `https://chat.yourdomain.com` with the actual URL of your deployed chat server.*
+
+### Example Client Page
+
+For a full working example of how to embed and configure the chat widget, refer to the `chat-client/chat.html` file in this repository. It demonstrates a basic HTML page with the chat widget integrated, showing how to pass initial configuration and metadata.
+
+## Use Cases & Integrations
+
+### Integration with n8n (or other automation tools)
+
+This chat widget is perfect for building automated support workflows with platforms like **n8n**, Zapier, or Make. By combining Webhooks and the REST API, you can create a seamless, real-time bridge between your website visitors and your backend systems, such as a support team on Telegram.
+
+**Example Workflow: Website Chat -> n8n -> Telegram**
+
+1.  **Receive a Message**: A user sends a message on your website. The chat server instantly fires a **Webhook** with the message content and user metadata.
+2.  **Catch the Webhook in n8n**: Create an n8n workflow that starts with a **Webhook node**. Use the URL from this node in the chat's Admin Panel.
+3.  **Process and Forward**: The n8n workflow receives the data. You can parse the user's name, email, and message. Then, use the **Telegram node** to forward this message to a private support channel, notifying your team instantly.
+4.  **Reply from Telegram**: Your support agent replies in the Telegram channel.
+5.  **Send the Reply Back**: An n8n workflow can listen for replies from the agent on Telegram. It then uses the **HTTP Request node** to call the chat's **REST API**, sending the agent's message back to the correct user on the website in real-time.
+
+This creates a powerful, two-way communication channel, allowing your team to manage customer support from a platform like Telegram, while n8n handles the automation in between.
+
+---
+
+## API & Webhook Documentation
 
 The application provides a REST API for sending messages and a Webhook system for receiving them.
 
 ### Authentication
 
 -   **Base URL**: `https://chat.yourdomain.com/`
--   **API Token**: `MOJrnzS8pQyizRynxuuEJ98y8tPeJMg6` (Example)
+-   **API Token**: Your unique token, which can be managed in the Admin Panel (`Settings -> API Token`).
 
-*Note: The API token can be changed in the Admin Panel -> Settings -> API Token.*
+### Receiving Messages (Webhook)
 
-### Sending Messages (API)
+The server can send an instant notification to a specified URL whenever a user sends a message. This is the primary way to integrate incoming messages with external systems.
 
-This API allows you to programmatically send messages from the support team to a specific user on the website.
+#### 1. How to Configure
+1.  Go to the Chat Admin Panel.
+2.  Navigate to **⚙️ Options -> 🔗 Webhook**.
+3.  Enter the full URL of your listener (e.g., your n8n Webhook node URL).
+4.  Check the **"Enable sending"** box and click **"Save"**.
+
+#### 2. Request Details
+-   **Method**: `POST`
+-   **Headers**: `Content-Type: application/json`
+-   **Trigger**: Fires immediately when a new message is received from a client.
+
+#### 3. Request Body (JSON Payload)
+The server sends a JSON object containing the message text and all available session metadata.
+
+**Example Payload:**
+```json
+{
+  "session_data": [
+    {
+      "session_id": "user_am6ysq",
+      "metadata": {
+        "user_session": "Ukraine, Kyiv Oblast, Olenivka (31.43.52.185), Mac, Google Chrome",
+        "user_id": "2",
+        "user_name": "Vitaliy Kaplia",
+        "user_email": "vitalii.kaplia@gmail.com"
+      },
+      "updated_at": "2025-11-27 06:35:27"
+    }
+  ],
+  "message_text": "Hello, I have a question about my order!"
+}
+```
+
+### Sending Messages (REST API)
+
+This API allows you to programmatically send messages from a backend system (like an n8n workflow) to a specific user on your website.
 
 #### 1. Get Chat ID (`targetId`)
-
-Before sending a message, you need the user's `session_id`, which serves as the `targetId`.
+First, you need the `session_id` of the user. This is typically received from the initial webhook.
 
 -   **Request**: `GET /?get-all-chats-api=true&token=YOUR_API_TOKEN`
-
-    ```http
-    https://chat.yourdomain.com/?get-all-chats-api=true&token=MOJrnzS8pQyizRynxuuEJ98y8tPeJMg6
-    ```
-
--   **Success Response (200 OK)**:
-    A JSON array of active chat sessions.
-
-    ```json
-    [
-      {
-        "session_id": "user_k92lx8",
-        "metadata": {
-            "user_name": "Vitaliy",
-            "user_email": "dev@test.com"
-        },
-        "updated_at": "2023-10-27 10:00:00"
-      }
-    ]
-    ```
-    Copy the required `session_id` (e.g., `user_k92lx8`) to use as your `targetId`.
+    *(This endpoint can also be used to list all active chats.)*
 
 #### 2. Send a Message
-
-You can send a message using either a GET or a POST request. POST is recommended for longer messages or those containing special characters.
-
-**Endpoint**: `/?send-message-to-chat-api=true`
+-   **Endpoint**: `/?send-message-to-chat-api=true`
+-   **Method**: `POST` (recommended) or `GET`
+-   **Content-Type**: `application/json` or `application/x-www-form-urlencoded`
 
 **Request Parameters**:
 
@@ -221,16 +308,7 @@ You can send a message using either a GET or a POST request. POST is recommended
 | `targetId`               | `string`| **Required.** The `session_id` of the user you want to message. |
 | `message`                | `string`| **Required.** The text of the message.                      |
 
-**Method A: GET Request (for quick tests)**
-
-```http
-https://chat.yourdomain.com/?send-message-to-chat-api=true&token=YOUR_API_TOKEN&targetId=user_k92lx8&message=Hello%20from%20the%20API
-```
-
-**Method B: POST Request (Recommended)**
-
--   **Endpoint**: `https://chat.yourdomain.com/?send-message-to-chat-api=true`
--   **Content-Type**: `application/json` or `application/x-www-form-urlencoded`
+**Code Examples**:
 
 **PHP (cURL) Example:**
 ```php
@@ -292,7 +370,7 @@ const sendMessage = async (chatId, text) => {
 sendMessage('user_k92lx8', 'Hello from the JS console!');
 ```
 
-#### 3. Server Responses
+**Server Responses**:
 
 -   **Success (200 OK)**:
     ```json
@@ -313,87 +391,3 @@ sendMessage('user_k92lx8', 'Hello from the JS console!');
         "error": "Missing targetId or message"
     }
     ```
-
----
-
-
-### Receiving Messages (Webhook)
-
-The server can send an instant notification to a specified URL whenever a user sends a message in the chat widget.
-
-#### 1. Request Details
-
--   **Method**: `POST`
--   **Headers**: `Content-Type: application/json`
--   **Trigger**: Fires immediately when a new message is received from a client.
-
-#### 2. Request Body (JSON Payload)
-
-The server sends a JSON object containing the message text and session data.
-
-**Example Payload:**
-```json
-{
-  "session_data": [
-    {
-      "session_id": "user_am6ysq",
-      "metadata": {
-        "user_session": "Ukraine, Kyiv Oblast, Olenivka (31.43.52.185), Mac, Google Chrome",
-        "user_id": "2",
-        "user_name": "Vitaliy Kaplia",
-        "user_email": "vitalii.kaplia@gmail.com"
-      },
-      "updated_at": "2025-11-27 06:35:27"
-    }
-  ],
-  "message_text": "Hello, I have a question about my order!"
-}
-```
-
-#### 3. PHP Handler Example
-
-Here is a basic PHP script to receive and process the webhook data.
-
-```php
-<?php
-// Get the raw POST data from the request
-$json = file_get_contents('php://input');
-
-// Decode the JSON data
-$data = json_decode($json, true);
-
-if ($data && isset($data['message_text'])) {
-    $message = $data['message_text'];
-    $sessionInfo = $data['session_data'][0];
-
-    $userId = $sessionInfo['metadata']['user_id'] ?? 'Guest';
-    $userName = $sessionInfo['metadata']['user_name'] ?? 'Unknown';
-
-    // YOUR CUSTOM LOGIC HERE:
-    // 1. Save the message to a CRM
-    // 2. Send a notification to Telegram or Slack
-    // 3. Write to a log file
-
-    $logEntry = "User $userName ($userId) wrote: $message\n";
-    file_put_contents('webhook_log.txt', $logEntry, FILE_APPEND);
-
-    // It's important to return a 200 OK response
-    http_response_code(200);
-    echo json_encode(['status' => 'received']);
-} else {
-    // Respond with an error if data is missing
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Invalid data']);
-}
-?>
-```
-
-#### 4. How to Configure the Webhook
-
-1.  Go to the Chat Admin Panel.
-2.  Navigate to **⚙️ Options -> 🔗 Webhook**.
-3.  Enter the full URL of your handler script (e.g., `https://yoursite.com/api/chat-webhook.php`).
-4.  Check the **"Enable sending"** box.
-5.  Click **"Save"**.
-
-```

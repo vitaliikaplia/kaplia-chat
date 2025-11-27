@@ -45,11 +45,11 @@ db.serialize(() => {
     )`);
 
     // Ініціалізація адміна та міграції
-    db.get("SELECT * FROM admins WHERE username = ?", ['vitaliikaplia'], (err, row) => {
+    db.get("SELECT * FROM admins WHERE username = ?", ['admin'], (err, row) => {
         if (!row) {
-            const hash = bcrypt.hashSync('9u5eZr1YRocoC1aG', 10);
+            const hash = bcrypt.hashSync('1122334455667788', 10);
             db.run("INSERT INTO admins (username, password_hash, api_token) VALUES (?, ?, ?)",
-                ['vitaliikaplia', hash, DEFAULT_API_TOKEN]);
+                ['admin', hash, DEFAULT_API_TOKEN]);
             console.log("Default admin created.");
         } else {
             // Завантажуємо налаштування вебхука в пам'ять
@@ -63,7 +63,7 @@ db.serialize(() => {
 
                 if (!colNames.includes('api_token')) {
                     db.run("ALTER TABLE admins ADD COLUMN api_token TEXT", () => {
-                        db.run("UPDATE admins SET api_token = ? WHERE username = 'vitaliikaplia'", [DEFAULT_API_TOKEN]);
+                        db.run("UPDATE admins SET api_token = ? WHERE username = 'admin'", [DEFAULT_API_TOKEN]);
                     });
                 }
                 if (!colNames.includes('webhook_url')) {
@@ -91,7 +91,7 @@ let adminSocket = null;
 // --- ДОПОМІЖНІ ФУНКЦІЇ ---
 function checkApiToken(token, callback) {
     if (!token) return callback(false);
-    db.get("SELECT api_token FROM admins WHERE username = 'vitaliikaplia'", (err, row) => {
+    db.get("SELECT api_token FROM admins WHERE username = 'admin'", (err, row) => {
         if (row && row.api_token === token) callback(true);
         else callback(false);
     });
@@ -234,16 +234,17 @@ wss.on('connection', (ws, req) => {
 
     // === АДМІН ===
     if (authPass) {
-        db.get("SELECT * FROM admins WHERE username = ?", ['vitaliikaplia'], (err, row) => {
+        db.get("SELECT * FROM admins WHERE username = ?", ['admin'], (err, row) => {
             if (row && bcrypt.compareSync(authPass, row.password_hash)) {
                 console.log('Admin connected successfully');
                 adminSocket = ws;
                 ws.isAdmin = true;
 
-                // Відправляємо успіх та ПОТОЧНІ налаштування вебхука
+                // Відправляємо успіх, ПОТОЧНІ налаштування вебхука та API токен
                 ws.send(JSON.stringify({
                     type: 'auth_success',
-                    webhookConfig: webhookConfig
+                    webhookConfig: webhookConfig,
+                    apiToken: row.api_token
                 }));
 
                 getAllSessions((rows) => {
@@ -260,13 +261,13 @@ wss.on('connection', (ws, req) => {
 
                         if (data.type === 'change_password') {
                             const newHash = bcrypt.hashSync(data.newPassword, 10);
-                            db.run("UPDATE admins SET password_hash = ? WHERE username = ?", [newHash, 'vitaliikaplia'], (err) => {
+                            db.run("UPDATE admins SET password_hash = ? WHERE username = ?", [newHash, 'admin'], (err) => {
                                 ws.send(JSON.stringify({ type: 'system', text: !err ? 'Пароль успішно змінено!' : 'Помилка' }));
                             });
                         }
 
                         if (data.type === 'change_api_token') {
-                            db.run("UPDATE admins SET api_token = ? WHERE username = ?", [data.newToken, 'vitaliikaplia'], (err) => {
+                            db.run("UPDATE admins SET api_token = ? WHERE username = ?", [data.newToken, 'admin'], (err) => {
                                 ws.send(JSON.stringify({ type: 'system', text: !err ? 'API Токен оновлено!' : 'Помилка' }));
                             });
                         }
@@ -275,7 +276,7 @@ wss.on('connection', (ws, req) => {
                         if (data.type === 'update_webhook') {
                             const enabled = data.enabled ? 1 : 0;
                             db.run("UPDATE admins SET webhook_url = ?, webhook_enabled = ? WHERE username = ?",
-                                [data.url, enabled, 'vitaliikaplia'], (err) => {
+                                [data.url, enabled, 'admin'], (err) => {
                                     if(!err) {
                                         // Оновлюємо кеш в пам'яті
                                         webhookConfig.url = data.url;
