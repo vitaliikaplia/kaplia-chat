@@ -10,8 +10,16 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ## Features
 
-- **Real-time Communication**: Instant message delivery using WebSockets.
-- **Admin Panel**: A dedicated interface for support agents to view and respond to user chats, with options to manage credentials and settings.
+- **Real-time Communication**: Instant message delivery using WebSockets with synchronization across multiple user tabs.
+- **Spy Typing (Real-time Preview)**: Admins can see what users are typing in real-time before they hit send, allowing for faster responses.
+- **Advanced Admin Panel**:
+    - **Message Management**: Ability to delete specific messages instantly.
+    - **Session Insights**: View detailed user metadata and System Session IDs for API usage.
+    - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
+- **Smart Widget**:
+    - **Auto-Open**: The widget automatically expands when an admin sends a reply.
+    - **Link Parsing**: URLs in messages are automatically detected and converted into clickable links.
+- **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.
 - **Simple Integration**: Easily add the chat widget to any website with a simple JavaScript snippet.
 - **REST API & Webhooks**: Programmatically send messages and receive notifications for seamless integration with other services.
 - **Secure & Self-Hosted**: Run it on your own infrastructure under Nginx with SSL encryption for maximum privacy and control.
