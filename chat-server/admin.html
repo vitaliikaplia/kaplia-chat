@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --bg-sidebar: #ffffff;
+            --bg-chat: #f5f7fb;
+            --bg-message-client: #ffffff;
+            --bg-message-admin: #007bff;
+            --text-main: #333;
+            --text-secondary: #888;
+            --border: #eaeaea;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background: var(--bg-chat);
+            color: var(--text-main);
+        }
+
+        #login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #ffffff; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 999;
+        }
+        .login-box {
+            padding: 40px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center; width: 300px; background: white;
+        }
+        .login-box input {
+            width: 100%; padding: 12px; margin-bottom: 15px;
+            border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;
+            font-size: 16px;
+        }
+        .login-box button {
+            width: 100%; padding: 12px; background: var(--primary);
+            color: white; border: none; border-radius: 8px;
+            font-size: 16px; cursor: pointer; font-weight: 500;
+        }
+
+        #admin-panel { display: none; width: 100%; height: 100%; }
+
+        .sidebar {
+            width: 320px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .user-list { flex: 1; overflow-y: auto; }
+
+        .user-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.2s;
+        }
+        .user-item:hover { background: #f9f9f9; }
+        .user-item.active { background: #eaf4ff; border-left: 4px solid var(--primary); }
+
+        .u-avatar {
+            width: 40px; height: 40px; background: #ddd;
+            border-radius: 50%; margin-right: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #555; flex-shrink: 0;
+        }
+        .active .u-avatar { background: var(--primary); color: white; }
+
+        .u-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+        .u-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .u-email { font-size: 12px; color: var(--text-secondary); margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .u-session { font-size: 11px; color: #999; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+        .u-meta { display: flex; flex-direction: column; align-items: flex-end; }
+        .notify-dot { width: 8px; height: 8px; background: #ff4444; border-radius: 50%; opacity: 0; margin-bottom: 5px; }
+        .user-item.has-msg .notify-dot { opacity: 1; }
+
+        .delete-btn {
+            background: none; border: none; color: #ccc;
+            font-size: 18px; cursor: pointer; padding: 4px;
+            transition: color 0.2s;
+        }
+        .delete-btn:hover { color: #ff4444; }
+
+        .settings-bar {
+            padding: 15px; border-top: 1px solid var(--border);
+            text-align: center; background: #fff;
+            display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between;
+        }
+        .settings-btn {
+            background: none; border: 1px solid #ddd; padding: 6px 10px;
+            border-radius: 20px; cursor: pointer; color: #555; font-size: 12px;
+            flex: 1; min-width: 80px;
+        }
+        .settings-btn:hover { background: #f5f5f5; }
+        .logout-btn { background: #ffebeb; color: #d32f2f; border: 1px solid #ffcdd2; }
+        .logout-btn:hover { background: #ffcdd2; }
+
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); }
+
+        .chat-header {
+            padding: 15px 25px; background: #fff;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+            height: 60px; box-sizing: border-box;
+        }
+        .chat-header-info { display: flex; flex-direction: column; }
+        .chat-header h3 { margin: 0; font-size: 16px; }
+        .chat-header span { font-size: 12px; color: #888; font-weight: normal; margin-top: 2px; }
+
+        .messages {
+            flex: 1; padding: 25px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .msg {
+            max-width: 60%;
+            padding: 10px 16px;
+            border-radius: 16px;
+            font-size: 15px;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            word-wrap: break-word;
+        }
+        .msg.client { background: var(--bg-message-client); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .msg.admin { background: var(--bg-message-admin); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .system-msg { align-self: center; background: rgba(0,0,0,0.05); color: #666; font-size: 12px; padding: 5px 12px; border-radius: 12px; margin: 10px 0; }
+
+        .input-box {
+            padding: 20px; background: #fff;
+            border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .input-box input {
+            flex: 1; padding: 12px 15px;
+            border: 1px solid #ddd; border-radius: 25px;
+            font-size: 15px; outline: none; background: #f5f7fb;
+            transition: border 0.2s;
+        }
+        .input-box input:focus { border-color: var(--primary); background: #fff; }
+
+        .send-btn {
+            width: 45px; height: 45px; border-radius: 50%;
+            background: var(--primary); color: white; border: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; box-shadow: 0 2px 5px rgba(0,123,255,0.3);
+            transition: transform 0.1s;
+        }
+        .send-btn:active { transform: scale(0.95); }
+
+        /* MODALS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 300px; text-align: center; }
+        .modal-content input[type="text"], .modal-content input[type="password"] { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .modal-btns { display: flex; justify-content: space-between; gap: 10px; }
+        .modal-btns button { flex: 1; padding: 10px; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-cancel { background: #eee; }
+        .btn-save { background: var(--primary); color: white; }
+
+        /* Checkbox style */
+        .webhook-switch { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
+
+        #error-modal .modal-content { border-top: 5px solid #ff4444; }
+        #error-modal h3 { color: #ff4444; margin-top: 0; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div class="login-box">
+        <h2>Вхід в Адмінку</h2>
+        <input type="text" id="loginUser" value="vitaliikaplia" placeholder="Логін">
+        <input type="password" id="loginPass" placeholder="Пароль">
+        <button onclick="manualLogin()">Увійти</button>
+    </div>
+</div>
+
+<div id="admin-panel">
+    <div class="sidebar">
+        <div class="sidebar-header">Чати</div>
+        <div class="user-list" id="userList"></div>
+        <div class="settings-bar">
+            <button class="settings-btn" onclick="openSettings('pass')">🔐 Пароль</button>
+            <button class="settings-btn" onclick="openSettings('token')">🔑 Токен</button>
+            <button class="settings-btn" onclick="openSettings('webhook')">🔗 Webhook</button>
+            <button class="settings-btn logout-btn" onclick="logout()">Вихід</button>
+        </div>
+    </div>
+
+    <div class="chat-area">
+        <div class="chat-header" id="chatHeader">
+            <div class="chat-header-info">
+                <h3>Оберіть чат</h3>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="messages" id="chatMessages">
+            <div class="system-msg">Оберіть користувача зі списку зліва</div>
+        </div>
+
+        <div class="input-box">
+            <input type="text" id="msgInput" placeholder="Напишіть повідомлення..." onkeypress="if(event.key==='Enter') sendReply()">
+            <button class="send-btn" onclick="sendReply()">➤</button>
+        </div>
+    </div>
+</div>
+
+<div id="settings-modal-pass" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Зміна пароля</h3>
+        <input type="password" id="newPass" placeholder="Новий пароль">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeSettings('pass')">Скасувати</button>
+            <button class="btn-save" onclick="changePassword()">Зберегти</button>
+        </div>
+    </div>
+</div>
+
+<div id="settings-modal-token" class="modal-overlay">
+    <div class="modal-content">
+        <h3>API Токен</h3>
+        <input type="text" id="newToken" placeholder="Новий токен">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeSettings('token')">Скасувати</button>
+            <button class="btn-save" onclick="changeToken()">Зберегти</button>
+        </div>
+    </div>
+</div>
+
+<div id="settings-modal-webhook" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Webhook Налаштування</h3>
+        <div class="webhook-switch">
+            <span>Увімкнути відправку:</span>
+            <input type="checkbox" id="webhookEnabled">
+        </div>
+        <input type="text" id="webhookUrl" placeholder="https://your-site.com/endpoint">
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeSettings('webhook')">Скасувати</button>
+            <button class="btn-save" onclick="saveWebhook()">Зберегти</button>
+        </div>
+    </div>
+</div>
+
+<div id="error-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Помилка входу</h3>
+        <p>Невірний логін або пароль</p>
+        <button class="btn-cancel" onclick="closeError()" style="width: 100%">Спробувати ще</button>
+    </div>
+</div>
+
+<script>
+    let ws;
+    let activeChatUserId = null;
+    let usersInfo = {};
+    let isAuthenticated = false;
+
+    function checkAuth() {
+        const savedPass = localStorage.getItem('kaplia_admin_pass');
+        if (savedPass) connectAdmin(savedPass);
+    }
+    checkAuth();
+
+    function manualLogin() {
+        const p = document.getElementById('loginPass').value;
+        connectAdmin(p);
+    }
+
+    function logout() {
+        localStorage.removeItem('kaplia_admin_pass');
+        location.reload();
+    }
+
+    function connectAdmin(password) {
+        if (ws) ws.close();
+        ws = new WebSocket('wss://' + location.host + '?auth=' + encodeURIComponent(password));
+
+        ws.onopen = () => { };
+
+        ws.onclose = () => {
+            if (!isAuthenticated) {
+                showError();
+                localStorage.removeItem('kaplia_admin_pass');
+            }
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type === 'auth_success') {
+                isAuthenticated = true;
+                localStorage.setItem('kaplia_admin_pass', password);
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'flex';
+
+                // Заповнюємо налаштування вебхука, якщо прийшли
+                if (data.webhookConfig) {
+                    document.getElementById('webhookUrl').value = data.webhookConfig.url;
+                    document.getElementById('webhookEnabled').checked = !!data.webhookConfig.enabled;
+                }
+                return;
+            }
+
+            if (data.type === 'user_list') {
+                document.getElementById('userList').innerHTML = '';
+                data.users.forEach(u => {
+                    usersInfo[u.id] = u.info;
+                    addUserToSidebar(u.id);
+                });
+            }
+
+            if (data.type === 'user_info_update') {
+                usersInfo[data.id] = data.info;
+                updateUserDOM(data.id);
+                if (activeChatUserId === data.id) updateHeader(data.id);
+            }
+
+            if (data.type === 'new_user') addUserToSidebar(data.id);
+            if (data.type === 'user_left') markUserOffline(data.id);
+
+            if (data.type === 'client_msg') handleIncomingMessage(data.from, data.text);
+
+            if (data.type === 'api_msg_sent') {
+                if (activeChatUserId === data.targetId) {
+                    const chatWindow = document.getElementById('chatMessages');
+                    chatWindow.innerHTML += `<div class="msg admin">${data.text}</div>`;
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+            }
+
+            if (data.type === 'history_data') {
+                if (activeChatUserId === data.targetId) {
+                    const chatWindow = document.getElementById('chatMessages');
+                    chatWindow.innerHTML = '';
+                    data.messages.forEach(msg => {
+                        const type = msg.sender === 'support' ? 'admin' : 'client';
+                        chatWindow.innerHTML += `<div class="msg ${type}">${msg.text}</div>`;
+                    });
+                    chatWindow.scrollTop = chatWindow.scrollHeight;
+                }
+            }
+
+            if (data.type === 'session_deleted') {
+                const el = document.getElementById('user-' + data.id);
+                if (el) el.remove();
+                if (activeChatUserId === data.id) {
+                    document.getElementById('chatMessages').innerHTML = '<div class="system-msg">Чат видалено</div>';
+                    document.querySelector('#chatHeader h3').innerText = 'Оберіть чат';
+                    document.querySelector('#chatHeader span').innerText = '';
+                    activeChatUserId = null;
+                }
+            }
+
+            if (data.type === 'system') {
+                alert('Система: ' + data.text);
+                if (data.text.includes('успішно')) closeSettings('pass');
+                if (data.text.includes('Токен')) closeSettings('token');
+                if (data.text.includes('Webhook')) closeSettings('webhook');
+            }
+        };
+    }
+
+    function getUserHTML(userId) {
+        const info = usersInfo[userId] || {};
+        const name = info.user_name || 'Гість';
+        const email = info.user_email || '';
+        const sessionInfo = info.user_session || ('ID: ' + userId);
+        const initial = name.charAt(0).toUpperCase();
+
+        return `
+                <div class="u-avatar">${initial}</div>
+                <div class="u-info">
+                    <div class="u-name">${name}</div>
+                    <div class="u-email">${email}</div>
+                    <div class="u-session" title="${sessionInfo}">${sessionInfo}</div>
+                </div>
+                <div class="u-meta">
+                    <span class="notify-dot"></span>
+                    <button class="delete-btn" onclick="deleteUser('${userId}', event)" title="Видалити">✕</button>
+                </div>
+            `;
+    }
+
+    function addUserToSidebar(userId) {
+        const existing = document.getElementById('user-' + userId);
+        if (existing) {
+            existing.style.opacity = '1';
+            return;
+        }
+        const div = document.createElement('div');
+        div.className = 'user-item';
+        div.id = 'user-' + userId;
+        div.innerHTML = getUserHTML(userId);
+        div.onclick = () => selectUser(userId);
+        document.getElementById('userList').prepend(div);
+    }
+
+    function updateUserDOM(userId) {
+        const el = document.getElementById('user-' + userId);
+        if(el) el.innerHTML = getUserHTML(userId);
+    }
+
+    function markUserOffline(userId) {
+        const el = document.getElementById('user-' + userId);
+        if (el) el.style.opacity = '0.5';
+    }
+
+    function deleteUser(userId, event) {
+        event.stopPropagation();
+        if (confirm('Видалити цей чат безповоротно?')) {
+            ws.send(JSON.stringify({ type: 'delete_session', targetId: userId }));
+        }
+    }
+
+    function selectUser(userId) {
+        activeChatUserId = userId;
+        document.querySelectorAll('.user-item').forEach(el => el.classList.remove('active'));
+        const el = document.getElementById('user-' + userId);
+        if (el) {
+            el.classList.add('active');
+            el.classList.remove('has-msg');
+        }
+        updateHeader(userId);
+        document.getElementById('chatMessages').innerHTML = '<div class="system-msg">Завантаження...</div>';
+        ws.send(JSON.stringify({ type: 'get_history', targetId: userId }));
+    }
+
+    function updateHeader(userId) {
+        const info = usersInfo[userId] || {};
+        const h3 = document.querySelector('#chatHeader h3');
+        const span = document.querySelector('#chatHeader span');
+        h3.innerText = info.user_name || 'Гість';
+        span.innerText = (info.user_email ? info.user_email : '') +
+            (info.user_session ? ' • ' + info.user_session : '');
+    }
+
+    function handleIncomingMessage(userId, text) {
+        if (activeChatUserId === userId) {
+            const chatWindow = document.getElementById('chatMessages');
+            chatWindow.innerHTML += `<div class="msg client">${text}</div>`;
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        } else {
+            const el = document.getElementById('user-' + userId);
+            if (el) {
+                el.classList.add('has-msg');
+                el.parentNode.prepend(el);
+            }
+        }
+    }
+
+    function sendReply() {
+        const input = document.getElementById('msgInput');
+        const text = input.value.trim();
+        if (!text || !activeChatUserId) return;
+        ws.send(JSON.stringify({ type: 'admin_reply', targetId: activeChatUserId, text: text }));
+        const chatWindow = document.getElementById('chatMessages');
+        chatWindow.innerHTML += `<div class="msg admin">${text}</div>`;
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+        input.value = '';
+    }
+
+    function openSettings(type) {
+        if(type === 'pass') document.getElementById('settings-modal-pass').style.display = 'flex';
+        if(type === 'token') document.getElementById('settings-modal-token').style.display = 'flex';
+        if(type === 'webhook') document.getElementById('settings-modal-webhook').style.display = 'flex';
+    }
+    function closeSettings(type) {
+        if(type === 'pass') document.getElementById('settings-modal-pass').style.display = 'none';
+        if(type === 'token') document.getElementById('settings-modal-token').style.display = 'none';
+        if(type === 'webhook') document.getElementById('settings-modal-webhook').style.display = 'none';
+    }
+
+    function changePassword() {
+        const newPass = document.getElementById('newPass').value;
+        if(newPass) ws.send(JSON.stringify({ type: 'change_password', newPassword: newPass }));
+    }
+    function changeToken() {
+        const newToken = document.getElementById('newToken').value;
+        if(newToken) ws.send(JSON.stringify({ type: 'change_api_token', newToken: newToken }));
+    }
+    function saveWebhook() {
+        const url = document.getElementById('webhookUrl').value;
+        const enabled = document.getElementById('webhookEnabled').checked;
+        ws.send(JSON.stringify({ type: 'update_webhook', url: url, enabled: enabled }));
+    }
+
+    function showError() { document.getElementById('error-modal').style.display = 'flex'; }
+    function closeError() { document.getElementById('error-modal').style.display = 'none'; }
+</script>
+</body>
+</html>
