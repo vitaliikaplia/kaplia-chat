@@ -15,6 +15,7 @@ const DEFAULT_API_TOKEN = 'MOJrnzS8pQyizRynxuuEJ98y8tPeJMg6';
 let webhookConfig = { url: '', enabled: 0 };
 let timeConfig = { timezone: '0', dateFormat: 'd.m.Y', timeFormat: 'H:i' };
 let realtimeTypingEnabled = 0;
+let allowedOrigins = [];
 
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS admins (
@@ -27,7 +28,8 @@ db.serialize(() => {
                                                   timezone TEXT DEFAULT '0',
                                                   date_format TEXT DEFAULT 'd.m.Y',
                                                   time_format TEXT DEFAULT 'H:i',
-                                                  realtime_typing INTEGER DEFAULT 0
+                                                  realtime_typing INTEGER DEFAULT 0,
+                                                  allowed_origins TEXT DEFAULT ''
             )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS messages (
@@ -57,6 +59,7 @@ db.serialize(() => {
             timeConfig.dateFormat = row.date_format || 'd.m.Y';
             timeConfig.timeFormat = row.time_format || 'H:i';
             realtimeTypingEnabled = row.realtime_typing || 0;
+            allowedOrigins = (row.allowed_origins || '').split('\n').filter(o => o.trim());
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -69,6 +72,7 @@ db.serialize(() => {
                 if (!colNames.includes('date_format')) db.run("ALTER TABLE admins ADD COLUMN date_format TEXT DEFAULT 'd.m.Y'");
                 if (!colNames.includes('time_format')) db.run("ALTER TABLE admins ADD COLUMN time_format TEXT DEFAULT 'H:i'");
                 if (!colNames.includes('realtime_typing')) db.run("ALTER TABLE admins ADD COLUMN realtime_typing INTEGER DEFAULT 0");
+                if (!colNames.includes('allowed_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_origins TEXT DEFAULT ''");
             });
         }
     });
@@ -92,7 +96,14 @@ function checkApiToken(token, callback) {
     });
 }
 
-// ЗМІНЕНО: тепер повертає ID через callback
+function checkOriginAllowed(origin) {
+    if (allowedOrigins.length === 0) return true;
+    return allowedOrigins.some(allowed => {
+        const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`, 'i').test(origin);
+    });
+}
+
 function saveMessage(sessionId, sender, text, timestamp, callback) {
     db.run("INSERT INTO messages (session_id, sender, text, timestamp) VALUES (?, ?, ?, ?)",
         [sessionId, sender, text, timestamp],
@@ -108,7 +119,6 @@ function updateSessionInfo(sessionId, metadata) {
             ON CONFLICT(session_id) DO UPDATE SET metadata=excluded.metadata, updated_at=CURRENT_TIMESTAMP`, [sessionId, jsonMeta]);
 }
 
-// ЗМІНЕНО: Вибираємо ID
 function getHistory(sessionId, callback) {
     db.all("SELECT id, sender, text, timestamp FROM messages WHERE session_id = ? ORDER BY id ASC", [sessionId], (err, rows) => { if (!err) callback(rows); });
 }
@@ -152,6 +162,7 @@ app.get('/', (req, res) => {
         });
         return;
     }
+
     if (req.query['send-message-to-chat-api'] === 'true') {
         const token = req.query.token;
         const targetId = req.query.targetId;
@@ -184,13 +195,12 @@ app.post('/', (req, res) => {
 app.get('/widget.js', (req, res) => res.sendFile(path.join(__dirname, 'widget.js')));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'favicon.ico')));
 
-// --- WS ---
 wss.on('connection', (ws, req) => {
     const parameters = url.parse(req.url, true);
     const sessionId = parameters.query.session;
     const authPass = parameters.query.auth;
+    const origin = req.headers.origin || '';
 
-    // === ADMIN ===
     if (authPass) {
         db.get("SELECT * FROM admins WHERE username = ?", ['admin'], (err, row) => {
             if (row && bcrypt.compareSync(authPass, row.password_hash)) {
@@ -205,7 +215,8 @@ wss.on('connection', (ws, req) => {
                     timezone: timeConfig.timezone,
                     dateFormat: timeConfig.dateFormat,
                     timeFormat: timeConfig.timeFormat,
-                    realtimeTyping: realtimeTypingEnabled
+                    realtimeTyping: realtimeTypingEnabled,
+                    allowedOrigins: row.allowed_origins || ''
                 }));
 
                 getAllSessions((rows) => {
@@ -246,6 +257,12 @@ wss.on('connection', (ws, req) => {
                                 ws.send(JSON.stringify({ type: 'system', text: `Перегляд набору: ${enabled ? 'УВІМКНЕНО' : 'ВИМКНЕНО'}` }));
                             });
                         }
+                        if (data.type === 'update_allowed_origins') {
+                            db.run("UPDATE admins SET allowed_origins = ? WHERE username = ?", [data.origins, 'admin'], () => {
+                                allowedOrigins = data.origins.split('\n').filter(o => o.trim());
+                                ws.send(JSON.stringify({ type: 'system', text: 'Дозволені домени збережено!' }));
+                            });
+                        }
 
                         if (data.type === 'get_history') {
                             getHistory(data.targetId, (rows) => ws.send(JSON.stringify({ type: 'history_data', targetId: data.targetId, messages: rows })));
@@ -258,18 +275,14 @@ wss.on('connection', (ws, req) => {
                             });
                         }
 
-                        // --- ВИДАЛЕННЯ ПОВІДОМЛЕННЯ ---
                         if (data.type === 'delete_message') {
                             db.run("DELETE FROM messages WHERE id = ?", [data.msgId], (err) => {
                                 if (!err) {
-                                    // Сповіщаємо адміна
                                     ws.send(JSON.stringify({ type: 'message_deleted', msgId: data.msgId }));
-                                    // Сповіщаємо клієнта (всі його вкладки)
                                     sendToUserTabs(data.targetId, { type: 'message_deleted', msgId: data.msgId });
                                 }
                             });
                         }
-                        // -------------------------------
 
                         if (data.type === 'delete_session') {
                             const targetId = data.targetId;
@@ -296,7 +309,12 @@ wss.on('connection', (ws, req) => {
         return;
     }
 
-    // === CLIENT ===
+    if (!checkOriginAllowed(origin)) {
+        console.log(`Origin blocked: ${origin}`);
+        ws.close(4003, 'Origin not allowed');
+        return;
+    }
+
     const userId = sessionId || 'anon_' + Math.random().toString(36).substr(2, 5);
     ws.userId = userId;
 
@@ -329,7 +347,6 @@ wss.on('connection', (ws, req) => {
             }
             if (parsed.text) {
                 const timestamp = new Date().toISOString();
-                // Зберігаємо і отримуємо ID
                 saveMessage(userId, 'client', parsed.text, timestamp, (newId) => {
                     const meta = clientInfo.get(userId);
                     sendWebhook(userId, parsed.text, meta, timestamp);
@@ -341,7 +358,7 @@ wss.on('connection', (ws, req) => {
                             text: parsed.text,
                             info: meta,
                             timestamp: timestamp,
-                            id: newId // Передаємо ID адміну
+                            id: newId
                         }));
                     }
 
@@ -352,7 +369,7 @@ wss.on('connection', (ws, req) => {
                                 text: parsed.text,
                                 sender: 'me',
                                 timestamp: timestamp,
-                                id: newId // Передаємо ID іншим вкладкам
+                                id: newId
                             }));
                         }
                     });

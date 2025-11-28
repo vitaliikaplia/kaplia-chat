@@ -49,7 +49,6 @@
         .msg.client { background: var(--bg-message-client); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; }
         .msg.admin { background: var(--bg-message-admin); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
 
-        /* СТИЛЬ ДЛЯ ПОСИЛАНЬ */
         .msg a { color: inherit; text-decoration: underline; font-weight: bold; }
 
         .msg-time { display: block; font-size: 10px; text-align: right; margin-top: 4px; opacity: 0.7; }
@@ -69,15 +68,18 @@
         #typingPreview { position: absolute; bottom: 85px; left: 20px; right: 20px; background: rgba(255, 255, 200, 0.9); border: 1px solid #e0e0a0; padding: 10px; border-radius: 8px; color: #555; font-size: 13px; font-style: italic; display: none; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 10; }
 
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
-        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 300px; text-align: center; }
-        .modal-content input[type="text"], .modal-content input[type="password"], .modal-content select { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
-        .modal-btns { display: flex; justify-content: space-between; gap: 10px; }
+        .modal-content { background: white; padding: 25px; border-radius: 12px; width: 350px; max-height: 80vh; overflow-y: auto; text-align: center; }
+        .modal-content input[type="text"], .modal-content input[type="password"], .modal-content select, .modal-content textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-family: inherit; }
+        .modal-content textarea { resize: vertical; min-height: 80px; }
+        .modal-btns { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; }
         .modal-btns button { flex: 1; padding: 10px; border-radius: 6px; border: none; cursor: pointer; }
         .btn-cancel { background: #eee; }
         .btn-save { background: var(--primary); color: white; }
-        .webhook-switch { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }
+        .webhook-switch { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
         .form-group { text-align: left; margin-bottom: 10px; }
         .form-group label { font-size: 12px; color: #666; font-weight: bold; display: block; margin-bottom: 5px; }
+        .section-divider { margin: 15px 0; border: 0; border-top: 1px solid #eee; }
+        .section-title { font-size: 13px; font-weight: bold; color: #333; margin: 15px 0 10px 0; text-align: left; }
         #error-modal .modal-content { border-top: 5px solid #ff4444; }
         #error-modal h3 { color: #ff4444; margin-top: 0; }
         ::-webkit-scrollbar { width: 6px; }
@@ -114,7 +116,35 @@
 
 <div id="settings-modal-pass" class="modal-overlay"><div class="modal-content"><h3>Зміна пароля</h3><input type="password" id="newPass" placeholder="Новий пароль"><div class="modal-btns"><button class="btn-cancel" onclick="closeSettings('pass')">Скасувати</button><button class="btn-save" onclick="changePassword()">Зберегти</button></div></div></div>
 <div id="settings-modal-token" class="modal-overlay"><div class="modal-content"><h3>API Токен</h3><input type="text" id="newToken" placeholder="Новий токен"><div class="modal-btns"><button class="btn-cancel" onclick="closeSettings('token')">Скасувати</button><button class="btn-save" onclick="changeToken()">Зберегти</button></div></div></div>
-<div id="settings-modal-webhook" class="modal-overlay"><div class="modal-content"><h3>Системні опції</h3><div class="webhook-switch"><span>Увімкнути Webhook:</span><input type="checkbox" id="webhookEnabled"></div><input type="text" id="webhookUrl" placeholder="Webhook URL"><hr style="margin:15px 0;border:0;border-top:1px solid #eee;"><div class="webhook-switch"><span>Real-time Typing:</span><input type="checkbox" id="realtimeTypingEnabled"></div><div class="modal-btns"><button class="btn-cancel" onclick="closeSettings('webhook')">Скасувати</button><button class="btn-save" onclick="saveWebhook()">Зберегти</button></div></div></div>
+
+<div id="settings-modal-webhook" class="modal-overlay">
+    <div class="modal-content">
+        <h3>Системні опції</h3>
+
+        <div class="section-title">Webhook</div>
+        <div class="webhook-switch"><span>Увімкнути Webhook:</span><input type="checkbox" id="webhookEnabled"></div>
+        <input type="text" id="webhookUrl" placeholder="Webhook URL">
+
+        <hr class="section-divider">
+
+        <div class="section-title">Набір тексту</div>
+        <div class="webhook-switch"><span>Real-time Typing:</span><input type="checkbox" id="realtimeTypingEnabled"></div>
+
+        <hr class="section-divider">
+
+        <div class="section-title">Дозволені домени (CORS)</div>
+        <div class="form-group">
+            <label>По одному на рядок. Підтримується * як wildcard. Пусто = всі дозволені.</label>
+            <textarea id="allowedOrigins" rows="4" placeholder="https://example.com&#10;https://*.mysite.com&#10;https://shop.example.ua"></textarea>
+        </div>
+
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="closeSettings('webhook')">Скасувати</button>
+            <button class="btn-save" onclick="saveSystemOptions()">Зберегти</button>
+        </div>
+    </div>
+</div>
+
 <div id="settings-modal-timezone" class="modal-overlay"><div class="modal-content"><h3>Налаштування часу</h3><div class="form-group"><label>Часовий пояс (UTC Offset)</label><select id="timezoneSelect"></select></div><div class="form-group"><label>Формат дати (d.m.Y, Y-m-d)</label><input type="text" id="dateFormatInput" placeholder="d.m.Y"></div><div class="form-group"><label>Формат часу (H:i, g:i A)</label><input type="text" id="timeFormatInput" placeholder="H:i"></div><div class="modal-btns"><button class="btn-cancel" onclick="closeSettings('timezone')">Скасувати</button><button class="btn-save" onclick="saveTimeSettings()">Зберегти</button></div></div></div>
 <div id="error-modal" class="modal-overlay"><div class="modal-content"><h3>Помилка</h3><p>Невірні дані</p><button class="btn-cancel" onclick="closeError()" style="width: 100%">ОК</button></div></div>
 
@@ -154,6 +184,7 @@
                 if (data.dateFormat) { adminDateFormat = data.dateFormat; document.getElementById('dateFormatInput').value = adminDateFormat; }
                 if (data.timeFormat) { adminTimeFormat = data.timeFormat; document.getElementById('timeFormatInput').value = adminTimeFormat; }
                 if (data.realtimeTyping !== undefined) document.getElementById('realtimeTypingEnabled').checked = !!data.realtimeTyping;
+                if (data.allowedOrigins !== undefined) document.getElementById('allowedOrigins').value = data.allowedOrigins;
                 return;
             }
 
@@ -194,9 +225,7 @@
         };
     }
 
-    // --- TEXT FORMATTER (LINKIFY) ---
     function formatTextWithLinks(text) {
-        // 1. Sanitize HTML
         let safeText = text
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -204,7 +233,6 @@
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
 
-        // 2. Linkify URLs (http/https)
         const urlRegex = /(https?:\/\/[^\s]+)/g;
         return safeText.replace(urlRegex, function(url) {
             return `<a href="${url}" target="_blank">${url}</a>`;
@@ -237,7 +265,6 @@
         const dateObj = new Date(timestamp || new Date().toISOString());
         const timeStr = formatDatePHPStyle(dateObj, adminTimeFormat);
 
-        // Використовуємо форматер для посилань
         const formattedText = formatTextWithLinks(text);
 
         const msgDiv = document.createElement('div');
@@ -275,7 +302,6 @@
         ws.send(JSON.stringify({type:'get_history', targetId:userId}));
     }
 
-    // Оновлена функція з sessionID
     function updateHeader(userId) {
         const info = usersInfo[userId] || {};
         document.querySelector('#chatHeader h3').innerText = info.user_name || 'Гість';
@@ -290,7 +316,18 @@
 
     function changePassword() { const v=document.getElementById('newPass').value; if(v) ws.send(JSON.stringify({type:'change_password', newPassword:v})); }
     function changeToken() { const v=document.getElementById('newToken').value; if(v) ws.send(JSON.stringify({type:'change_api_token', newToken:v})); }
-    function saveWebhook() { const u=document.getElementById('webhookUrl').value; const e=document.getElementById('webhookEnabled').checked; const rt=document.getElementById('realtimeTypingEnabled').checked; ws.send(JSON.stringify({type:'update_webhook', url:u, enabled:e})); ws.send(JSON.stringify({type:'update_realtime_typing', enabled:rt})); }
+
+    function saveSystemOptions() {
+        const webhookUrl = document.getElementById('webhookUrl').value;
+        const webhookEnabled = document.getElementById('webhookEnabled').checked;
+        const realtimeTyping = document.getElementById('realtimeTypingEnabled').checked;
+        const origins = document.getElementById('allowedOrigins').value;
+
+        ws.send(JSON.stringify({type:'update_webhook', url: webhookUrl, enabled: webhookEnabled}));
+        ws.send(JSON.stringify({type:'update_realtime_typing', enabled: realtimeTyping}));
+        ws.send(JSON.stringify({type:'update_allowed_origins', origins: origins}));
+    }
+
     function saveTimeSettings() { const tz = document.getElementById('timezoneSelect').value; const df = document.getElementById('dateFormatInput').value; const tf = document.getElementById('timeFormatInput').value; ws.send(JSON.stringify({type:'update_time_settings', timezone:tz, dateFormat:df, timeFormat:tf})); }
     function showError() { document.getElementById('error-modal').style.display='flex'; }
     function closeError() { document.getElementById('error-modal').style.display='none'; }

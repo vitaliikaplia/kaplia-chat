@@ -12,6 +12,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 - **Real-time Communication**: Instant message delivery using WebSockets with synchronization across multiple user tabs.
 - **Spy Typing (Real-time Preview)**: Admins can see what users are typing in real-time before they hit send, allowing for faster responses.
+- **Origin/CORS Control**: Restrict widget usage to specific domains with wildcard support (e.g., `https://*.example.com`). Empty list allows all origins.
 - **Advanced Admin Panel**:
     - **Message Management**: Ability to delete specific messages instantly.
     - **Session Insights**: View detailed user metadata and System Session IDs for API usage.
