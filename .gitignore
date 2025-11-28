@@ -3,6 +3,10 @@
 
 # Chat specific files
 chat-server/chat.db
+chat-server/data.sqlite
 
 # Node.js dependencies
 node_modules/
+
+# Claude Code context
+CLAUDE.md
