@@ -10,16 +10,31 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ## Features
 
+### Core Features
 - **Real-time Communication**: Instant message delivery using WebSockets with synchronization across multiple user tabs.
 - **Spy Typing (Real-time Preview)**: Admins can see what users are typing in real-time before they hit send, allowing for faster responses.
 - **Origin/CORS Control**: Restrict widget usage to specific domains with wildcard support (e.g., `https://*.example.com`). Empty list allows all origins.
-- **Advanced Admin Panel**:
-    - **Message Management**: Ability to delete specific messages instantly.
-    - **Session Insights**: View detailed user metadata and System Session IDs for API usage.
-    - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
-- **Smart Widget**:
-    - **Auto-Open**: The widget automatically expands when an admin sends a reply.
-    - **Link Parsing**: URLs in messages are automatically detected and converted into clickable links.
+
+### Admin Panel (React + Vite)
+- **Modern UI**: Rebuilt with React and Vite for better performance and user experience.
+- **Message Management**: Ability to delete specific messages instantly.
+- **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
+- **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
+- **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
+- **Remember Me**: Option to stay logged in across browser sessions.
+- **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background).
+- **Toast Notifications**: Visual feedback for all actions (save, copy, errors, etc.).
+
+### Spam Protection
+- **Rate Limiting**: Configure maximum messages per minute per user (default: 20).
+- **Message Length Limit**: Set maximum characters per message (default: 1000).
+- **Real-time Feedback**: Users receive instant feedback when limits are exceeded.
+
+### Smart Widget
+- **Auto-Open**: The widget automatically expands when an admin sends a reply.
+- **Link Parsing**: URLs in messages are automatically detected and converted into clickable links.
+
+### Other Features
 - **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.
 - **Simple Integration**: Easily add the chat widget to any website with a simple JavaScript snippet.
 - **REST API & Webhooks**: Programmatically send messages and receive notifications for seamless integration with other services.
@@ -135,12 +150,12 @@ Configure Nginx to handle SSL and forward traffic, including WebSocket connectio
     mkdir ~/chat-server
     cd ~/chat-server
     ```
-    *Note: Place the application files (`index.js`, `admin.html`, etc.) in this directory.*
+    *Note: Place the application files (`index.js`, `widget.js`, `admin-panel/dist/`, etc.) in this directory.*
 
 2.  **Initialize the project and install dependencies**:
     ```bash
     npm init -y
-    npm install ws # Or other dependencies from your package.json
+    npm install ws express better-sqlite3
     ```
 
 ### Step 5: Run the Application with PM2
@@ -400,3 +415,56 @@ sendMessage('user_k92lx8', 'Hello from the JS console!');
         "error": "Missing targetId or message"
     }
     ```
+
+---
+
+## Admin Panel Development
+
+The admin panel is built with React and Vite. If you want to modify it:
+
+### Prerequisites
+- Node.js 18+ installed
+
+### Development
+
+```bash
+cd chat-server/admin-panel
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+The dev server runs on `http://localhost:5173` by default.
+
+### Building for Production
+
+```bash
+cd chat-server/admin-panel
+npm run build
+```
+
+This creates optimized files in `admin-panel/dist/` directory that are served by the main Node.js server.
+
+### Project Structure
+
+```
+admin-panel/
+├── src/
+│   ├── components/     # React components (Modal, Sidebar, ChatArea, etc.)
+│   ├── context/        # React Context for state management
+│   ├── hooks/          # Custom hooks (useWebSocket)
+│   ├── utils/          # Utilities (notification sounds)
+│   ├── App.jsx         # Main application component
+│   └── main.jsx        # Entry point
+├── dist/               # Production build (served by server)
+└── package.json
+```
+
+---
+
+## License
+
+MIT License - feel free to use this project for personal or commercial purposes.

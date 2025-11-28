@@ -3,6 +3,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const url = require('url');
 const path = require('path');
+const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 
@@ -16,6 +17,10 @@ let webhookConfig = { url: '', enabled: 0 };
 let timeConfig = { timezone: '0', dateFormat: 'd.m.Y', timeFormat: 'H:i' };
 let realtimeTypingEnabled = 0;
 let allowedOrigins = [];
+let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
+
+// Rate limiting storage: Map<sessionId, { timestamps: number[] }>
+const rateLimitMap = new Map();
 
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS admins (
@@ -60,6 +65,8 @@ db.serialize(() => {
             timeConfig.timeFormat = row.time_format || 'H:i';
             realtimeTypingEnabled = row.realtime_typing || 0;
             allowedOrigins = (row.allowed_origins || '').split('\n').filter(o => o.trim());
+            rateLimitConfig.maxMessagesPerMinute = row.max_messages_per_minute || 20;
+            rateLimitConfig.maxMessageLength = row.max_message_length || 1000;
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -73,6 +80,8 @@ db.serialize(() => {
                 if (!colNames.includes('time_format')) db.run("ALTER TABLE admins ADD COLUMN time_format TEXT DEFAULT 'H:i'");
                 if (!colNames.includes('realtime_typing')) db.run("ALTER TABLE admins ADD COLUMN realtime_typing INTEGER DEFAULT 0");
                 if (!colNames.includes('allowed_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_origins TEXT DEFAULT ''");
+                if (!colNames.includes('max_messages_per_minute')) db.run("ALTER TABLE admins ADD COLUMN max_messages_per_minute INTEGER DEFAULT 20");
+                if (!colNames.includes('max_message_length')) db.run("ALTER TABLE admins ADD COLUMN max_message_length INTEGER DEFAULT 1000");
             });
         }
     });
@@ -84,6 +93,10 @@ const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve React admin panel static files (excluding index.html which is handled by app.get('/'))
+const adminBuildPath = path.join(__dirname, 'admin-panel', 'dist');
+app.use(express.static(adminBuildPath, { index: false }));
 
 const clients = new Map();
 const clientInfo = new Map();
@@ -102,6 +115,36 @@ function checkOriginAllowed(origin) {
         const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
         return new RegExp(`^${pattern}$`, 'i').test(origin);
     });
+}
+
+function checkRateLimit(sessionId) {
+    const now = Date.now();
+    const oneMinuteAgo = now - 60000;
+
+    if (!rateLimitMap.has(sessionId)) {
+        rateLimitMap.set(sessionId, { timestamps: [] });
+    }
+
+    const userData = rateLimitMap.get(sessionId);
+    // Remove timestamps older than 1 minute
+    userData.timestamps = userData.timestamps.filter(ts => ts > oneMinuteAgo);
+
+    if (userData.timestamps.length >= rateLimitConfig.maxMessagesPerMinute) {
+        return false; // Rate limit exceeded
+    }
+
+    userData.timestamps.push(now);
+    return true;
+}
+
+function validateMessage(text) {
+    if (!text || typeof text !== 'string') {
+        return { valid: false, error: 'empty_message' };
+    }
+    if (text.length > rateLimitConfig.maxMessageLength) {
+        return { valid: false, error: 'message_too_long', maxLength: rateLimitConfig.maxMessageLength };
+    }
+    return { valid: true };
 }
 
 function saveMessage(sessionId, sender, text, timestamp, callback) {
@@ -174,7 +217,14 @@ app.get('/', (req, res) => {
         });
         return;
     }
-    res.sendFile(path.join(__dirname, 'admin.html'));
+    // Serve React admin panel
+    const indexPath = path.join(adminBuildPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        // Fallback to old admin.html if React build doesn't exist
+        res.sendFile(path.join(__dirname, 'admin.html'));
+    }
 });
 
 app.post('/', (req, res) => {
@@ -216,7 +266,9 @@ wss.on('connection', (ws, req) => {
                     dateFormat: timeConfig.dateFormat,
                     timeFormat: timeConfig.timeFormat,
                     realtimeTyping: realtimeTypingEnabled,
-                    allowedOrigins: row.allowed_origins || ''
+                    allowedOrigins: row.allowed_origins || '',
+                    maxMessagesPerMinute: rateLimitConfig.maxMessagesPerMinute,
+                    maxMessageLength: rateLimitConfig.maxMessageLength
                 }));
 
                 getAllSessions((rows) => {
@@ -263,6 +315,14 @@ wss.on('connection', (ws, req) => {
                                 ws.send(JSON.stringify({ type: 'system', text: 'Дозволені домени збережено!' }));
                             });
                         }
+                        if (data.type === 'update_rate_limit') {
+                            db.run("UPDATE admins SET max_messages_per_minute = ?, max_message_length = ? WHERE username = ?",
+                                [data.maxMessagesPerMinute, data.maxMessageLength, 'admin'], () => {
+                                    rateLimitConfig.maxMessagesPerMinute = data.maxMessagesPerMinute;
+                                    rateLimitConfig.maxMessageLength = data.maxMessageLength;
+                                    ws.send(JSON.stringify({ type: 'system', text: 'Ліміти повідомлень збережено!' }));
+                                });
+                        }
 
                         if (data.type === 'get_history') {
                             getHistory(data.targetId, (rows) => ws.send(JSON.stringify({ type: 'history_data', targetId: data.targetId, messages: rows })));
@@ -272,6 +332,8 @@ wss.on('connection', (ws, req) => {
                             const timestamp = new Date().toISOString();
                             saveMessage(data.targetId, 'support', data.text, timestamp, (newId) => {
                                 sendToUserTabs(data.targetId, { text: data.text, sender: 'support', timestamp: timestamp, id: newId });
+                                // Send confirmation back to admin
+                                ws.send(JSON.stringify({ type: 'admin_msg_sent', targetId: data.targetId, text: data.text, timestamp: timestamp, id: newId }));
                             });
                         }
 
@@ -346,6 +408,19 @@ wss.on('connection', (ws, req) => {
                 if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: parsed.metadata }));
             }
             if (parsed.text) {
+                // Validate message
+                const validation = validateMessage(parsed.text);
+                if (!validation.valid) {
+                    ws.send(JSON.stringify({ type: 'error', error: validation.error, maxLength: validation.maxLength }));
+                    return;
+                }
+
+                // Check rate limit
+                if (!checkRateLimit(userId)) {
+                    ws.send(JSON.stringify({ type: 'error', error: 'rate_limit_exceeded', maxPerMinute: rateLimitConfig.maxMessagesPerMinute }));
+                    return;
+                }
+
                 const timestamp = new Date().toISOString();
                 saveMessage(userId, 'client', parsed.text, timestamp, (newId) => {
                     const meta = clientInfo.get(userId);

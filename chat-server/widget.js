@@ -88,7 +88,7 @@
     function showInitialMessages() {
         if (!hasHistory && config.initialMessages && config.initialMessages.length > 0) {
             const now = new Date().toISOString();
-            config.initialMessages.forEach(msg => addMsg(msg, 'support', now, null));
+            config.initialMessages.forEach(msg => addMsg(msg, 'support', now, null, true));
         }
     }
 
@@ -121,6 +121,23 @@
                 }
 
                 if (data.type === 'reset_chat') { msgs.innerHTML = ''; hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
+
+                if (data.type === 'error') {
+                    let errorMsg = '';
+                    if (data.error === 'rate_limit_exceeded') {
+                        errorMsg = `Забагато повідомлень. Зачекайте хвилину.`;
+                    } else if (data.error === 'message_too_long') {
+                        errorMsg = `Повідомлення занадто довге (макс. ${data.maxLength} символів)`;
+                    }
+                    if (errorMsg) {
+                        const div = document.createElement('div');
+                        div.className = 'k-msg system';
+                        div.style.color = '#dc3545';
+                        div.innerText = errorMsg;
+                        msgs.appendChild(div);
+                        scrollToBottom();
+                    }
+                }
             } catch(e) {}
         };
         ws.onclose = () => setTimeout(connect, 3000);
@@ -152,9 +169,9 @@
         }
     }
 
-    function addMsg(text, type, timestamp, msgId) {
+    function addMsg(text, type, timestamp, msgId, skipDateDivider) {
         const ts = timestamp || new Date().toISOString();
-        renderDateDivider(ts);
+        if (!skipDateDivider) renderDateDivider(ts);
         const div = document.createElement('div');
         div.className = `k-msg ${type}`;
         if (msgId) div.setAttribute('data-id', msgId);
