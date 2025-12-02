@@ -25,6 +25,8 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     deleteMessage,
     setTyping,
     setNotification,
+    setUserOnline,
+    setTabActive,
   } = useChat();
 
   // Keep ref in sync with state
@@ -61,17 +63,46 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
         addUser(data.id);
         break;
 
+      case 'user_connected':
+        // User opened page with widget - mark as online
+        addUser(data.id);
+        setUserOnline(data.id, true);
+        // Add system message to chat if this is the active user
+        if (data.id === activeUserIdRef.current && data.msgId) {
+          addMessage({
+            id: data.msgId,
+            userId: data.id,
+            sender: 'system',
+            text: 'user_connected',
+            timestamp: data.timestamp,
+          });
+        }
+        break;
+
       case 'user_info_update':
         updateUserInfo(data.id, data.info);
         break;
 
       case 'user_left':
-        // User disconnected but don't remove from list
+        // User disconnected - mark as offline but don't remove from list
+        setUserOnline(data.id, false);
+        // Add system message to chat if this is the active user
+        if (data.id === activeUserIdRef.current && data.msgId) {
+          addMessage({
+            id: data.msgId,
+            userId: data.id,
+            sender: 'system',
+            text: 'user_left',
+            timestamp: data.timestamp,
+          });
+        }
         break;
 
       case 'client_msg':
         // Add user first (before updating info to avoid overwriting)
         addUser(data.from);
+        // Mark user as online since they sent a message
+        setUserOnline(data.from, true);
         // Update user info if provided
         if (data.info) {
           updateUserInfo(data.from, data.info);
@@ -99,6 +130,53 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
       case 'client_typing':
         if (data.userId === activeUserIdRef.current) {
           setTyping(data.text || '');
+        }
+        break;
+
+      case 'tab_visibility':
+        // Just update UI state (no msgId means no DB save - navigation detection)
+        setTabActive(data.userId, data.isActive);
+        break;
+
+      case 'system_event':
+        // Delayed system event that was saved to DB (real tab switch, not navigation)
+        if (data.userId === activeUserIdRef.current && data.msgId) {
+          addMessage({
+            id: data.msgId,
+            userId: data.userId,
+            sender: 'system',
+            text: data.eventType,
+            timestamp: data.timestamp,
+          });
+        }
+        break;
+
+      case 'chat_opened':
+      case 'chat_closed':
+        // Add system message to chat if this is the active user
+        if (data.userId === activeUserIdRef.current && data.msgId) {
+          addMessage({
+            id: data.msgId,
+            userId: data.userId,
+            sender: 'system',
+            text: data.type,
+            timestamp: data.timestamp,
+          });
+        }
+        break;
+
+      case 'page_visit':
+        // Update user info with current URL
+        updateUserInfo(data.userId, { current_url: data.url });
+        // Add system message to chat if this is the active user
+        if (data.userId === activeUserIdRef.current && data.msgId) {
+          addMessage({
+            id: data.msgId,
+            userId: data.userId,
+            sender: 'system',
+            text: `page_visit:${data.url}`,
+            timestamp: data.timestamp,
+          });
         }
         break;
 
@@ -158,6 +236,8 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     setTyping,
     removeUser,
     setNotification,
+    setUserOnline,
+    setTabActive,
   ]);
 
   // Keep handleMessage ref updated
@@ -175,7 +255,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     soundEnabledRef.current = soundEnabled;
   }, [soundEnabled]);
 
-  const connect = useCallback((password, onAuthError, rememberMe = true) => {
+  const connect = useCallback((password, onAuthError, rememberMe = true, silent = false) => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/?auth=${encodeURIComponent(password)}`;
 
@@ -215,6 +295,25 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           if (rememberMe) {
             localStorage.setItem('kaplia_admin_pass', password);
           }
+          // Show toast only for initial login, not reconnects
+          if (!silent && onSystemMessageRef.current) {
+            onSystemMessageRef.current('Успішна авторизація!');
+          }
+          // Still need to update state
+          setAuthenticated(true);
+          setConfig({
+            webhookUrl: data.webhookConfig?.url || '',
+            webhookEnabled: data.webhookConfig?.enabled || false,
+            apiToken: data.apiToken || '',
+            timezone: data.timezone || '0',
+            dateFormat: data.dateFormat || 'd.m.Y',
+            timeFormat: data.timeFormat || 'H:i',
+            realtimeTyping: data.realtimeTyping || false,
+            allowedOrigins: data.allowedOrigins || '',
+            maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
+            maxMessageLength: data.maxMessageLength || 1000,
+          });
+          return; // Don't pass to handleMessage since we handled it here
         }
         if (handleMessageRef.current) {
           handleMessageRef.current(data);
@@ -240,7 +339,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
         console.log('Connection lost, reconnecting in 2 seconds...');
         reconnectTimeoutRef.current = setTimeout(() => {
           if (passwordRef.current && !isManualDisconnectRef.current) {
-            connect(passwordRef.current, null, false);
+            connect(passwordRef.current, null, false, true); // silent = true for reconnect
           }
         }, 2000);
       } else {
@@ -253,7 +352,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     };
 
     return ws;
-  }, [setAuthenticated]);
+  }, [setAuthenticated, setConfig]);
 
   const send = useCallback((data) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -326,7 +425,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
   useEffect(() => {
     const savedPassword = localStorage.getItem('kaplia_admin_pass');
     if (savedPassword) {
-      connect(savedPassword, null, false);
+      connect(savedPassword, null, false, true); // silent = true for auto-connect
     }
 
     return () => {

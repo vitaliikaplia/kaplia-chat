@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../context/ChatContext';
 import { Message } from './Message';
+import { SystemMessage } from './SystemMessage';
 import { isDifferentDay, getDateDivider } from '../utils/dateUtils';
 
 export function ChatArea({ onSendMessage, onDeleteMessage }) {
@@ -58,14 +59,25 @@ export function ChatArea({ onSendMessage, onDeleteMessage }) {
       }
       lastDate = msgDate;
 
-      result.push(
-        <Message
-          key={msg.id}
-          message={msg}
-          config={config}
-          onDelete={() => onDeleteMessage(msg.id, activeUserId)}
-        />
-      );
+      // Render system message or regular message
+      if (msg.sender === 'system') {
+        result.push(
+          <SystemMessage
+            key={msg.id}
+            message={msg}
+            config={config}
+          />
+        );
+      } else {
+        result.push(
+          <Message
+            key={msg.id}
+            message={msg}
+            config={config}
+            onDelete={() => onDeleteMessage(msg.id, activeUserId)}
+          />
+        );
+      }
     });
 
     return result;
@@ -106,6 +118,20 @@ export function ChatArea({ onSendMessage, onDeleteMessage }) {
             target_id: {activeUserId}
           </span>
         </div>
+        {userInfo?.current_url && (
+          <div className="text-xs mt-1 flex items-center gap-1">
+            <span className="text-gray-400">📍</span>
+            <a
+              href={userInfo.current_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-cyan-600 hover:text-cyan-800 hover:underline truncate max-w-md"
+              title={userInfo.current_url}
+            >
+              {userInfo.current_url}
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Messages container */}

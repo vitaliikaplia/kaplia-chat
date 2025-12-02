@@ -99,9 +99,39 @@
         if (isHidden) { box.style.display = 'flex'; setTimeout(() => { inp.focus(); scrollToBottom(); }, 100); } else { scrollToBottom(); }
     }
 
+    function sendTabVisibility() {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'tab_visibility', isActive: !document.hidden }));
+        }
+    }
+
+    let lastSentUrl = null;
+    function sendPageUrl() {
+        const currentUrl = window.location.href;
+        if (ws && ws.readyState === WebSocket.OPEN && currentUrl !== lastSentUrl) {
+            ws.send(JSON.stringify({ type: 'page_visit', url: currentUrl }));
+            lastSentUrl = currentUrl;
+        }
+    }
+
+    document.addEventListener('visibilitychange', sendTabVisibility);
+
+    // Track URL changes for SPA
+    let lastUrl = window.location.href;
+    setInterval(() => {
+        if (window.location.href !== lastUrl) {
+            lastUrl = window.location.href;
+            sendPageUrl();
+        }
+    }, 1000);
+
     function connect() {
         ws = new WebSocket(`${SERVER_URL}?session=${sessionId}`);
-        ws.onopen = () => { if (config.metadata) ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata })); };
+        ws.onopen = () => {
+            if (config.metadata) ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
+            sendTabVisibility();
+            sendPageUrl();
+        };
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -113,7 +143,14 @@
                 }
 
                 if (data.type === 'sync_message') addMsg(data.text, 'me', data.timestamp, data.id);
-                if (data.type === 'history') { hasHistory = true; msgs.innerHTML = ''; lastRenderedDate = null; data.messages.forEach(msg => { addMsg(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id); }); }
+                if (data.type === 'history') {
+                    hasHistory = true;
+                    msgs.innerHTML = '';
+                    lastRenderedDate = null;
+                    data.messages
+                        .filter(msg => msg.sender !== 'system') // Skip system messages
+                        .forEach(msg => { addMsg(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id); });
+                }
 
                 if (data.type === 'message_deleted') {
                     const el = document.querySelector(`.k-msg[data-id='${data.msgId}']`);
@@ -156,7 +193,18 @@
     function toggleChat() {
         const isHidden = box.style.display === 'none' || box.style.display === '';
         box.style.display = isHidden ? 'flex' : 'none';
-        if(isHidden) { setTimeout(() => { inp.focus(); scrollToBottom(); }, 100); }
+        if(isHidden) {
+            setTimeout(() => { inp.focus(); scrollToBottom(); }, 100);
+            // Notify server that chat was opened
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'chat_opened' }));
+            }
+        } else {
+            // Notify server that chat was closed
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'chat_closed' }));
+            }
+        }
     }
 
     function sendMessage() {

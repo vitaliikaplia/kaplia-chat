@@ -102,6 +102,13 @@ const clients = new Map();
 const clientInfo = new Map();
 let adminSocket = null;
 
+// Track pending disconnects for page navigation detection
+const pendingDisconnects = new Map(); // userId -> timeoutId
+const recentPageVisits = new Map(); // userId -> timestamp of last page_visit
+const pendingTabVisibility = new Map(); // userId -> { timeoutId, isActive }
+const NAVIGATION_GRACE_PERIOD = 3000; // 3 seconds to detect page navigation
+const TAB_VISIBILITY_DELAY = 500; // delay before logging tab visibility
+
 function checkApiToken(token, callback) {
     if (!token) return callback(false);
     db.get("SELECT api_token FROM admins WHERE username = 'admin'", (err, row) => {
@@ -152,6 +159,17 @@ function saveMessage(sessionId, sender, text, timestamp, callback) {
         [sessionId, sender, text, timestamp],
         function(err) {
             if (!err && callback) callback(this.lastID);
+        }
+    );
+}
+
+function saveSystemEvent(sessionId, eventType, callback) {
+    const timestamp = new Date().toISOString();
+    // sender = 'system', text contains the event type (user_connected, user_left, tab_active, tab_inactive)
+    db.run("INSERT INTO messages (session_id, sender, text, timestamp) VALUES (?, ?, ?, ?)",
+        [sessionId, 'system', eventType, timestamp],
+        function(err) {
+            if (!err && callback) callback(this.lastID, timestamp);
         }
     );
 }
@@ -380,6 +398,26 @@ wss.on('connection', (ws, req) => {
     const userId = sessionId || 'anon_' + Math.random().toString(36).substr(2, 5);
     ws.userId = userId;
 
+    // Check if this is a reconnect after page navigation
+    const pendingDisconnect = pendingDisconnects.get(userId);
+    if (pendingDisconnect) {
+        // Cancel the pending disconnect - user just navigated to another page
+        clearTimeout(pendingDisconnect);
+        pendingDisconnects.delete(userId);
+        // Don't log user_connected since they were never really "disconnected"
+        // Just notify admin that user is still online (for UI state)
+        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+            adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId }));
+        }
+    } else {
+        // This is a fresh connection - save and notify
+        saveSystemEvent(userId, 'user_connected', (msgId, timestamp) => {
+            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId, msgId, timestamp }));
+            }
+        });
+    }
+
     ws.send(JSON.stringify({
         type: 'config',
         dateFormat: timeConfig.dateFormat,
@@ -399,6 +437,96 @@ wss.on('connection', (ws, req) => {
                 if (realtimeTypingEnabled && adminSocket && adminSocket.readyState === WebSocket.OPEN) {
                     adminSocket.send(JSON.stringify({ type: 'client_typing', userId: userId, text: parsed.text }));
                 }
+                return;
+            }
+
+            if (parsed.type === 'tab_visibility') {
+                // Always update UI state immediately
+                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                    adminSocket.send(JSON.stringify({ type: 'tab_visibility', userId: userId, isActive: parsed.isActive }));
+                }
+
+                // Skip logging if this is part of page navigation
+                const recentVisit = recentPageVisits.get(userId);
+                if (pendingDisconnects.has(userId) || (recentVisit && Date.now() - recentVisit < NAVIGATION_GRACE_PERIOD)) {
+                    return;
+                }
+
+                // Cancel previous pending tab visibility for this user
+                const prevPending = pendingTabVisibility.get(userId);
+                if (prevPending) {
+                    clearTimeout(prevPending.timeoutId);
+                }
+
+                // Delay logging to check if page_visit comes soon (navigation detection)
+                const timeoutId = setTimeout(() => {
+                    pendingTabVisibility.delete(userId);
+                    // Check again if page_visit happened
+                    const recentVisitNow = recentPageVisits.get(userId);
+                    if (recentVisitNow && Date.now() - recentVisitNow < NAVIGATION_GRACE_PERIOD) {
+                        return; // Skip, was navigation
+                    }
+                    const eventType = parsed.isActive ? 'tab_active' : 'tab_inactive';
+                    saveSystemEvent(userId, eventType, (msgId, timestamp) => {
+                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                            adminSocket.send(JSON.stringify({ type: 'system_event', userId: userId, eventType, msgId, timestamp }));
+                        }
+                    });
+                }, TAB_VISIBILITY_DELAY);
+
+                pendingTabVisibility.set(userId, { timeoutId, isActive: parsed.isActive });
+                return;
+            }
+
+            if (parsed.type === 'chat_opened' || parsed.type === 'chat_closed') {
+                saveSystemEvent(userId, parsed.type, (msgId, timestamp) => {
+                    if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                        adminSocket.send(JSON.stringify({ type: parsed.type, userId: userId, msgId, timestamp }));
+                    }
+                });
+                return;
+            }
+
+            if (parsed.type === 'page_visit') {
+                const url = parsed.url;
+                // Cancel any pending tab_visibility log (this was navigation, not real tab switch)
+                const pendingTab = pendingTabVisibility.get(userId);
+                if (pendingTab) {
+                    clearTimeout(pendingTab.timeoutId);
+                    pendingTabVisibility.delete(userId);
+                }
+
+                // Mark this user as having recent page visit (to suppress tab_visibility logs)
+                recentPageVisits.set(userId, Date.now());
+                setTimeout(() => {
+                    const lastVisit = recentPageVisits.get(userId);
+                    if (lastVisit && Date.now() - lastVisit >= NAVIGATION_GRACE_PERIOD) {
+                        recentPageVisits.delete(userId);
+                    }
+                }, NAVIGATION_GRACE_PERIOD + 100);
+
+                // Update current_url in session metadata
+                const currentMeta = clientInfo.get(userId) || {};
+                currentMeta.current_url = url;
+                clientInfo.set(userId, currentMeta);
+                updateSessionInfo(userId, currentMeta);
+
+                // Save as system event with URL in text
+                const timestamp = new Date().toISOString();
+                db.run("INSERT INTO messages (session_id, sender, text, timestamp) VALUES (?, ?, ?, ?)",
+                    [userId, 'system', `page_visit:${url}`, timestamp],
+                    function(err) {
+                        if (!err && adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                            adminSocket.send(JSON.stringify({
+                                type: 'page_visit',
+                                userId: userId,
+                                url: url,
+                                msgId: this.lastID,
+                                timestamp
+                            }));
+                        }
+                    }
+                );
                 return;
             }
 
@@ -456,7 +584,28 @@ wss.on('connection', (ws, req) => {
     ws.on('close', () => {
         let hasActive = false;
         for (const c of wss.clients) { if (c.userId === userId && c.readyState === WebSocket.OPEN) { hasActive = true; break; } }
-        if (!hasActive && adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_left', id: userId }));
+        if (!hasActive) {
+            // Delay the disconnect to detect page navigation
+            const timeoutId = setTimeout(() => {
+                pendingDisconnects.delete(userId);
+                // Check again if user reconnected
+                let stillActive = false;
+                for (const c of wss.clients) { if (c.userId === userId && c.readyState === WebSocket.OPEN) { stillActive = true; break; } }
+                if (!stillActive) {
+                    saveSystemEvent(userId, 'user_left', (msgId, timestamp) => {
+                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                            adminSocket.send(JSON.stringify({ type: 'user_left', id: userId, msgId, timestamp }));
+                        }
+                    });
+                }
+            }, NAVIGATION_GRACE_PERIOD);
+            pendingDisconnects.set(userId, timeoutId);
+
+            // Notify admin immediately about offline status (for UI), but don't save to DB yet
+            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                adminSocket.send(JSON.stringify({ type: 'user_left', id: userId }));
+            }
+        }
     });
 });
 

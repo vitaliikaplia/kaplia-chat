@@ -6,6 +6,8 @@ const initialState = {
   isAuthenticated: false,
   users: [],
   usersInfo: {},
+  onlineUsers: {}, // Track online status: { odUserId: true/false }
+  tabActiveUsers: {}, // Track tab visibility: { odUserId: true/false }
   activeUserId: null,
   messages: [],
   typingText: '',
@@ -57,7 +59,10 @@ function chatReducer(state, action) {
         ...state,
         usersInfo: {
           ...state.usersInfo,
-          [action.payload.id]: action.payload.info,
+          [action.payload.id]: {
+            ...state.usersInfo[action.payload.id],
+            ...action.payload.info,
+          },
         },
       };
 
@@ -126,6 +131,24 @@ function chatReducer(state, action) {
         },
       };
 
+    case 'SET_USER_ONLINE':
+      return {
+        ...state,
+        onlineUsers: {
+          ...state.onlineUsers,
+          [action.payload.userId]: action.payload.isOnline,
+        },
+      };
+
+    case 'SET_TAB_ACTIVE':
+      return {
+        ...state,
+        tabActiveUsers: {
+          ...state.tabActiveUsers,
+          [action.payload.userId]: action.payload.isActive,
+        },
+      };
+
     default:
       return state;
   }
@@ -186,6 +209,14 @@ export function ChatProvider({ children }) {
     dispatch({ type: 'CLEAR_NOTIFICATION', payload: userId });
   }, []);
 
+  const setUserOnline = useCallback((userId, isOnline) => {
+    dispatch({ type: 'SET_USER_ONLINE', payload: { userId, isOnline } });
+  }, []);
+
+  const setTabActive = useCallback((userId, isActive) => {
+    dispatch({ type: 'SET_TAB_ACTIVE', payload: { userId, isActive } });
+  }, []);
+
   const value = {
     state,
     setAuthenticated,
@@ -201,6 +232,8 @@ export function ChatProvider({ children }) {
     setTyping,
     setNotification,
     clearNotification,
+    setUserOnline,
+    setTabActive,
   };
 
   return (

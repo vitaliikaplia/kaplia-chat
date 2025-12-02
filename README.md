@@ -17,12 +17,22 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ### Admin Panel (React + Vite)
 - **Modern UI**: Rebuilt with React and Vite for better performance and user experience.
+- **User Online/Offline Status**: Real-time indicators showing which users are online (green) or offline (gray/semi-transparent). Online users are sorted to the top of the list.
+- **Tab Activity Indicator**: Eye icon shows if user's browser tab is active (green eye) or in background (gray crossed eye).
+- **Activity Log (System Messages)**: Comprehensive logging of user activity saved to database:
+  - 🟢 User connected (opened page with widget)
+  - 🔴 User disconnected (closed page)
+  - 👁 Tab became active / 👁‍🗨 Tab went to background
+  - 💬 Chat opened / ✖️ Chat closed
+  - 🔗 Page navigation with URL tracking
+- **Current Page URL**: Shows the current page URL the user is viewing in the chat header.
+- **Smart Navigation Detection**: Distinguishes between page navigation and actual tab switches - only logs relevant events.
 - **Message Management**: Ability to delete specific messages instantly.
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
 - **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
 - **Remember Me**: Option to stay logged in across browser sessions.
-- **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background).
+- **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background). No duplicate "login successful" notifications on reconnect.
 - **Toast Notifications**: Visual feedback for all actions (save, copy, errors, etc.).
 
 ### Spam Protection
