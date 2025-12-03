@@ -22,8 +22,12 @@ const initialState = {
     allowedOrigins: '',
     maxMessagesPerMinute: 20,
     maxMessageLength: 1000,
+    adminMessagesLimit: 20,
+    widgetMessagesLimit: 20,
   },
   notifications: {},
+  hasMoreMessages: false,
+  loadingMoreMessages: false,
 };
 
 function chatReducer(state, action) {
@@ -86,6 +90,8 @@ function chatReducer(state, action) {
         activeUserId: action.payload,
         messages: [],
         typingText: '',
+        hasMoreMessages: false,
+        loadingMoreMessages: false,
         notifications: {
           ...state.notifications,
           [action.payload]: false,
@@ -93,7 +99,21 @@ function chatReducer(state, action) {
       };
 
     case 'SET_MESSAGES':
-      return { ...state, messages: action.payload };
+      return { ...state, messages: action.payload.messages, hasMoreMessages: action.payload.hasMore };
+
+    case 'PREPEND_MESSAGES':
+      return {
+        ...state,
+        messages: [...action.payload.messages, ...state.messages],
+        hasMoreMessages: action.payload.hasMore,
+        loadingMoreMessages: false,
+      };
+
+    case 'SET_LOADING_MORE':
+      return { ...state, loadingMoreMessages: action.payload };
+
+    case 'SET_HAS_MORE':
+      return { ...state, hasMoreMessages: action.payload };
 
     case 'ADD_MESSAGE':
       return {
@@ -108,6 +128,12 @@ function chatReducer(state, action) {
       return {
         ...state,
         messages: state.messages.filter(m => m.id !== action.payload),
+      };
+
+    case 'DELETE_SYSTEM_MESSAGES':
+      return {
+        ...state,
+        messages: state.messages.filter(m => m.sender !== 'system'),
       };
 
     case 'SET_TYPING':
@@ -185,8 +211,20 @@ export function ChatProvider({ children }) {
     dispatch({ type: 'SET_ACTIVE_USER', payload: userId });
   }, []);
 
-  const setMessages = useCallback((messages) => {
-    dispatch({ type: 'SET_MESSAGES', payload: messages });
+  const setMessages = useCallback((messages, hasMore = false) => {
+    dispatch({ type: 'SET_MESSAGES', payload: { messages, hasMore } });
+  }, []);
+
+  const prependMessages = useCallback((messages, hasMore = false) => {
+    dispatch({ type: 'PREPEND_MESSAGES', payload: { messages, hasMore } });
+  }, []);
+
+  const setLoadingMore = useCallback((loading) => {
+    dispatch({ type: 'SET_LOADING_MORE', payload: loading });
+  }, []);
+
+  const setHasMore = useCallback((hasMore) => {
+    dispatch({ type: 'SET_HAS_MORE', payload: hasMore });
   }, []);
 
   const addMessage = useCallback((message) => {
@@ -195,6 +233,10 @@ export function ChatProvider({ children }) {
 
   const deleteMessage = useCallback((msgId) => {
     dispatch({ type: 'DELETE_MESSAGE', payload: msgId });
+  }, []);
+
+  const deleteSystemMessagesFromState = useCallback(() => {
+    dispatch({ type: 'DELETE_SYSTEM_MESSAGES' });
   }, []);
 
   const setTyping = useCallback((text) => {
@@ -227,8 +269,12 @@ export function ChatProvider({ children }) {
     removeUser,
     setActiveUser,
     setMessages,
+    prependMessages,
+    setLoadingMore,
+    setHasMore,
     addMessage,
     deleteMessage,
+    deleteSystemMessagesFromState,
     setTyping,
     setNotification,
     clearNotification,

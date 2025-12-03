@@ -18,6 +18,7 @@ let timeConfig = { timezone: '0', dateFormat: 'd.m.Y', timeFormat: 'H:i' };
 let realtimeTypingEnabled = 0;
 let allowedOrigins = [];
 let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
+let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
@@ -67,6 +68,8 @@ db.serialize(() => {
             allowedOrigins = (row.allowed_origins || '').split('\n').filter(o => o.trim());
             rateLimitConfig.maxMessagesPerMinute = row.max_messages_per_minute || 20;
             rateLimitConfig.maxMessageLength = row.max_message_length || 1000;
+            messageLoadConfig.adminMessagesLimit = row.admin_messages_limit || 20;
+            messageLoadConfig.widgetMessagesLimit = row.widget_messages_limit || 20;
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -82,6 +85,8 @@ db.serialize(() => {
                 if (!colNames.includes('allowed_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_origins TEXT DEFAULT ''");
                 if (!colNames.includes('max_messages_per_minute')) db.run("ALTER TABLE admins ADD COLUMN max_messages_per_minute INTEGER DEFAULT 20");
                 if (!colNames.includes('max_message_length')) db.run("ALTER TABLE admins ADD COLUMN max_message_length INTEGER DEFAULT 1000");
+                if (!colNames.includes('admin_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN admin_messages_limit INTEGER DEFAULT 20");
+                if (!colNames.includes('widget_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN widget_messages_limit INTEGER DEFAULT 20");
             });
         }
     });
@@ -108,6 +113,10 @@ const recentPageVisits = new Map(); // userId -> timestamp of last page_visit
 const pendingTabVisibility = new Map(); // userId -> { timeoutId, isActive }
 const NAVIGATION_GRACE_PERIOD = 3000; // 3 seconds to detect page navigation
 const TAB_VISIBILITY_DELAY = 500; // delay before logging tab visibility
+
+// Track last system event per user for deduplication
+const lastSystemEvent = new Map(); // userId -> { eventType, timestamp }
+const SYSTEM_EVENT_DEDUP_PERIOD = 60000; // 60 seconds - don't log same event twice within this period
 
 function checkApiToken(token, callback) {
     if (!token) return callback(false);
@@ -163,6 +172,20 @@ function saveMessage(sessionId, sender, text, timestamp, callback) {
     );
 }
 
+// Check if this event should be deduplicated (same event too recently)
+function shouldDeduplicateEvent(userId, eventType) {
+    const lastEvent = lastSystemEvent.get(userId);
+    const now = Date.now();
+
+    if (lastEvent && lastEvent.eventType === eventType && (now - lastEvent.timestamp) < SYSTEM_EVENT_DEDUP_PERIOD) {
+        return true; // Skip this event
+    }
+
+    // Update last event
+    lastSystemEvent.set(userId, { eventType, timestamp: now });
+    return false;
+}
+
 function saveSystemEvent(sessionId, eventType, callback) {
     const timestamp = new Date().toISOString();
     // sender = 'system', text contains the event type (user_connected, user_left, tab_active, tab_inactive)
@@ -180,8 +203,30 @@ function updateSessionInfo(sessionId, metadata) {
             ON CONFLICT(session_id) DO UPDATE SET metadata=excluded.metadata, updated_at=CURRENT_TIMESTAMP`, [sessionId, jsonMeta]);
 }
 
-function getHistory(sessionId, callback) {
-    db.all("SELECT id, sender, text, timestamp FROM messages WHERE session_id = ? ORDER BY id ASC", [sessionId], (err, rows) => { if (!err) callback(rows); });
+function getHistory(sessionId, callback, limit = null, beforeId = null, excludeSystem = false) {
+    let query, params;
+    const senderFilter = excludeSystem ? " AND sender != 'system'" : "";
+
+    if (beforeId) {
+        // Load older messages (before given ID)
+        query = `SELECT id, sender, text, timestamp FROM messages WHERE session_id = ? AND id < ?${senderFilter} ORDER BY id DESC LIMIT ?`;
+        params = [sessionId, beforeId, limit || 20];
+    } else if (limit) {
+        // Load latest messages with limit
+        query = `SELECT * FROM (SELECT id, sender, text, timestamp FROM messages WHERE session_id = ?${senderFilter} ORDER BY id DESC LIMIT ?) ORDER BY id ASC`;
+        params = [sessionId, limit];
+    } else {
+        // Load all (fallback)
+        query = `SELECT id, sender, text, timestamp FROM messages WHERE session_id = ?${senderFilter} ORDER BY id ASC`;
+        params = [sessionId];
+    }
+    db.all(query, params, (err, rows) => {
+        if (!err) {
+            // If we loaded older messages, reverse to get correct order
+            if (beforeId) rows = rows.reverse();
+            callback(rows);
+        }
+    });
 }
 
 function getAllSessions(callback) {
@@ -286,12 +331,33 @@ wss.on('connection', (ws, req) => {
                     realtimeTyping: realtimeTypingEnabled,
                     allowedOrigins: row.allowed_origins || '',
                     maxMessagesPerMinute: rateLimitConfig.maxMessagesPerMinute,
-                    maxMessageLength: rateLimitConfig.maxMessageLength
+                    maxMessageLength: rateLimitConfig.maxMessageLength,
+                    adminMessagesLimit: messageLoadConfig.adminMessagesLimit,
+                    widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit
                 }));
 
                 getAllSessions((rows) => {
                     const usersList = rows.map(r => ({ id: r.session_id, info: JSON.parse(r.metadata || '{}') }));
                     ws.send(JSON.stringify({ type: 'user_list', users: usersList }));
+
+                    // Send current online status for all connected users
+                    const onlineUserIds = new Set();
+                    const tabActiveUserIds = new Set();
+                    wss.clients.forEach(client => {
+                        if (client.userId && client.readyState === WebSocket.OPEN) {
+                            onlineUserIds.add(client.userId);
+                            if (client.tabActive) {
+                                tabActiveUserIds.add(client.userId);
+                            }
+                        }
+                    });
+                    // Send online status for each user
+                    onlineUserIds.forEach(userId => {
+                        ws.send(JSON.stringify({ type: 'user_connected', id: userId }));
+                        if (tabActiveUserIds.has(userId)) {
+                            ws.send(JSON.stringify({ type: 'tab_visibility', userId: userId, isActive: true }));
+                        }
+                    });
                 });
 
                 ws.on('message', (message) => {
@@ -343,7 +409,49 @@ wss.on('connection', (ws, req) => {
                         }
 
                         if (data.type === 'get_history') {
-                            getHistory(data.targetId, (rows) => ws.send(JSON.stringify({ type: 'history_data', targetId: data.targetId, messages: rows })));
+                            const limit = data.limit || messageLoadConfig.adminMessagesLimit;
+                            const beforeId = data.beforeId || null;
+                            getHistory(data.targetId, (rows) => {
+                                if (beforeId) {
+                                    // Loading older messages
+                                    const hasMore = rows.length === limit;
+                                    ws.send(JSON.stringify({
+                                        type: 'more_history',
+                                        targetId: data.targetId,
+                                        messages: rows,
+                                        hasMore: hasMore
+                                    }));
+                                } else {
+                                    // Initial load - check if there are older messages
+                                    if (rows.length > 0) {
+                                        const oldestId = rows[0].id;
+                                        db.get("SELECT COUNT(*) as count FROM messages WHERE session_id = ? AND id < ?", [data.targetId, oldestId], (err, result) => {
+                                            ws.send(JSON.stringify({
+                                                type: 'history_data',
+                                                targetId: data.targetId,
+                                                messages: rows,
+                                                hasMore: result ? result.count > 0 : false
+                                            }));
+                                        });
+                                    } else {
+                                        ws.send(JSON.stringify({
+                                            type: 'history_data',
+                                            targetId: data.targetId,
+                                            messages: rows,
+                                            hasMore: false
+                                        }));
+                                    }
+                                }
+                            }, limit, beforeId);
+                        }
+
+                        if (data.type === 'update_message_limits') {
+                            db.run("UPDATE admins SET admin_messages_limit = ?, widget_messages_limit = ? WHERE username = ?",
+                                [data.adminMessagesLimit, data.widgetMessagesLimit, 'admin'], () => {
+                                    messageLoadConfig.adminMessagesLimit = data.adminMessagesLimit;
+                                    messageLoadConfig.widgetMessagesLimit = data.widgetMessagesLimit;
+                                    ws.send(JSON.stringify({ type: 'system', text: 'Налаштування повідомлень збережено!' }));
+                                });
                         }
 
                         if (data.type === 'admin_reply') {
@@ -360,6 +468,16 @@ wss.on('connection', (ws, req) => {
                                 if (!err) {
                                     ws.send(JSON.stringify({ type: 'message_deleted', msgId: data.msgId }));
                                     sendToUserTabs(data.targetId, { type: 'message_deleted', msgId: data.msgId });
+                                }
+                            });
+                        }
+
+                        if (data.type === 'delete_system_messages') {
+                            const targetId = data.targetId;
+                            db.run("DELETE FROM messages WHERE session_id = ? AND sender = 'system'", [targetId], function(err) {
+                                if (!err) {
+                                    ws.send(JSON.stringify({ type: 'system_messages_deleted', targetId: targetId, count: this.changes }));
+                                    ws.send(JSON.stringify({ type: 'system', text: `Видалено ${this.changes} системних повідомлень` }));
                                 }
                             });
                         }
@@ -410,28 +528,74 @@ wss.on('connection', (ws, req) => {
             adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId }));
         }
     } else {
-        // This is a fresh connection - save and notify
-        saveSystemEvent(userId, 'user_connected', (msgId, timestamp) => {
+        // This is a fresh connection - save and notify (with deduplication)
+        if (!shouldDeduplicateEvent(userId, 'user_connected')) {
+            saveSystemEvent(userId, 'user_connected', (msgId, timestamp) => {
+                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                    adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId, msgId, timestamp }));
+                }
+            });
+        } else {
+            // Still notify admin for UI, but don't save to DB
             if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId, msgId, timestamp }));
+                adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId }));
             }
-        });
+        }
     }
 
     ws.send(JSON.stringify({
         type: 'config',
         dateFormat: timeConfig.dateFormat,
         timeFormat: timeConfig.timeFormat,
-        timezone: timeConfig.timezone
+        timezone: timeConfig.timezone,
+        messagesLimit: messageLoadConfig.widgetMessagesLimit
     }));
 
     getHistory(userId, (rows) => {
-        if (rows.length > 0) ws.send(JSON.stringify({ type: 'history', messages: rows }));
-    });
+        if (rows.length > 0) {
+            const oldestId = rows[0].id;
+            // Count older non-system messages
+            db.get("SELECT COUNT(*) as count FROM messages WHERE session_id = ? AND id < ? AND sender != 'system'", [userId, oldestId], (err, result) => {
+                ws.send(JSON.stringify({
+                    type: 'history',
+                    messages: rows,
+                    hasMore: result ? result.count > 0 : false
+                }));
+            });
+        } else {
+            // Send empty history so client knows there's no history
+            ws.send(JSON.stringify({
+                type: 'history',
+                messages: [],
+                hasMore: false
+            }));
+        }
+    }, messageLoadConfig.widgetMessagesLimit, null, true);
 
     ws.on('message', (message) => {
         try {
             const parsed = JSON.parse(message);
+
+            // Heartbeat ping - just respond with pong to keep connection alive
+            if (parsed.type === 'ping') {
+                ws.send(JSON.stringify({ type: 'pong' }));
+                return;
+            }
+
+            // Load older messages for widget (excluding system messages)
+            if (parsed.type === 'load_more') {
+                const beforeId = parsed.beforeId;
+                const limit = messageLoadConfig.widgetMessagesLimit;
+                getHistory(userId, (rows) => {
+                    const hasMore = rows.length === limit;
+                    ws.send(JSON.stringify({
+                        type: 'more_history',
+                        messages: rows,
+                        hasMore: hasMore
+                    }));
+                }, limit, beforeId, true);
+                return;
+            }
 
             if (parsed.type === 'typing_update') {
                 if (realtimeTypingEnabled && adminSocket && adminSocket.readyState === WebSocket.OPEN) {
@@ -441,6 +605,9 @@ wss.on('connection', (ws, req) => {
             }
 
             if (parsed.type === 'tab_visibility') {
+                // Store tab active state on websocket object
+                ws.tabActive = parsed.isActive;
+
                 // Always update UI state immediately
                 if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
                     adminSocket.send(JSON.stringify({ type: 'tab_visibility', userId: userId, isActive: parsed.isActive }));
@@ -467,6 +634,10 @@ wss.on('connection', (ws, req) => {
                         return; // Skip, was navigation
                     }
                     const eventType = parsed.isActive ? 'tab_active' : 'tab_inactive';
+                    // Skip if same event was logged recently
+                    if (shouldDeduplicateEvent(userId, eventType)) {
+                        return;
+                    }
                     saveSystemEvent(userId, eventType, (msgId, timestamp) => {
                         if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
                             adminSocket.send(JSON.stringify({ type: 'system_event', userId: userId, eventType, msgId, timestamp }));
@@ -592,11 +763,14 @@ wss.on('connection', (ws, req) => {
                 let stillActive = false;
                 for (const c of wss.clients) { if (c.userId === userId && c.readyState === WebSocket.OPEN) { stillActive = true; break; } }
                 if (!stillActive) {
-                    saveSystemEvent(userId, 'user_left', (msgId, timestamp) => {
-                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                            adminSocket.send(JSON.stringify({ type: 'user_left', id: userId, msgId, timestamp }));
-                        }
-                    });
+                    // Skip if same event was logged recently
+                    if (!shouldDeduplicateEvent(userId, 'user_left')) {
+                        saveSystemEvent(userId, 'user_left', (msgId, timestamp) => {
+                            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                                adminSocket.send(JSON.stringify({ type: 'user_left', id: userId, msgId, timestamp }));
+                            }
+                        });
+                    }
                 }
             }, NAVIGATION_GRACE_PERIOD);
             pendingDisconnects.set(userId, timeoutId);

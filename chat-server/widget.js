@@ -44,6 +44,10 @@
     let clientDateFormat = 'd.m.Y';
     let clientTimeFormat = 'H:i';
     let serverTimezone = 0;
+    let hasMoreMessages = false;
+    let loadingMore = false;
+    let messagesLimit = 20;
+    let oldestMsgId = null;
 
     if (config.metadata && config.metadata.user_id) { sessionId = 'auth_' + config.metadata.user_id; localStorage.setItem('kaplia_chat_id', sessionId); }
     else { sessionId = localStorage.getItem('kaplia_chat_id'); if (!sessionId || sessionId.startsWith('auth_')) { sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); } }
@@ -94,6 +98,26 @@
 
     function scrollToBottom() { msgs.scrollTop = msgs.scrollHeight; }
 
+    function loadMoreMessages() {
+        if (loadingMore || !hasMoreMessages || !oldestMsgId) return;
+        loadingMore = true;
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'load_more', beforeId: oldestMsgId }));
+        }
+    }
+
+    function createMsgElement(text, type, timestamp, msgId) {
+        const ts = timestamp || new Date().toISOString();
+        const div = document.createElement('div');
+        div.className = `k-msg ${type}`;
+        if (msgId) div.setAttribute('data-id', msgId);
+        const dateObj = new Date(ts);
+        const timeStr = formatDatePHPStyle(dateObj, clientTimeFormat);
+        const formattedText = formatTextWithLinks(text);
+        div.innerHTML = `${formattedText} <span class="k-time">${timeStr}</span>`;
+        return div;
+    }
+
     function openWidget() {
         const isHidden = box.style.display === 'none' || box.style.display === '';
         if (isHidden) { box.style.display = 'flex'; setTimeout(() => { inp.focus(); scrollToBottom(); }, 100); } else { scrollToBottom(); }
@@ -125,17 +149,43 @@
         }
     }, 1000);
 
+    // Heartbeat to keep connection alive in background tabs
+    let heartbeatInterval = null;
+    const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+
+    function startHeartbeat() {
+        stopHeartbeat();
+        heartbeatInterval = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, HEARTBEAT_INTERVAL);
+    }
+
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+    }
+
     function connect() {
         ws = new WebSocket(`${SERVER_URL}?session=${sessionId}`);
         ws.onopen = () => {
             if (config.metadata) ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
             sendTabVisibility();
             sendPageUrl();
+            startHeartbeat();
         };
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data.type === 'config') { if (data.dateFormat) clientDateFormat = data.dateFormat; if (data.timeFormat) clientTimeFormat = data.timeFormat; if (data.timezone !== undefined) serverTimezone = parseFloat(data.timezone); }
+                if (data.type === 'config') {
+                    if (data.dateFormat) clientDateFormat = data.dateFormat;
+                    if (data.timeFormat) clientTimeFormat = data.timeFormat;
+                    if (data.timezone !== undefined) serverTimezone = parseFloat(data.timezone);
+                    if (data.messagesLimit) messagesLimit = data.messagesLimit;
+                }
 
                 if (data.text && !data.type) {
                     addMsg(data.text, data.sender === 'support' ? 'support' : 'system', data.timestamp, data.id);
@@ -144,12 +194,39 @@
 
                 if (data.type === 'sync_message') addMsg(data.text, 'me', data.timestamp, data.id);
                 if (data.type === 'history') {
-                    hasHistory = true;
                     msgs.innerHTML = '';
                     lastRenderedDate = null;
-                    data.messages
-                        .filter(msg => msg.sender !== 'system') // Skip system messages
-                        .forEach(msg => { addMsg(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id); });
+                    hasMoreMessages = data.hasMore || false;
+                    if (data.messages && data.messages.length > 0) {
+                        hasHistory = true;
+                        oldestMsgId = data.messages[0].id;
+                        data.messages.forEach(msg => { addMsg(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id); });
+                    } else {
+                        // No history - show initial messages
+                        hasHistory = false;
+                        showInitialMessages();
+                    }
+                }
+                if (data.type === 'more_history') {
+                    loadingMore = false;
+                    hasMoreMessages = data.hasMore || false;
+                    if (data.messages && data.messages.length > 0) {
+                        oldestMsgId = data.messages[0].id;
+                        // Remember scroll position to restore after prepending
+                        const scrollHeightBefore = msgs.scrollHeight;
+                        const scrollTopBefore = msgs.scrollTop;
+                        // Prepend new messages (oldest first)
+                        const fragment = document.createDocumentFragment();
+                        data.messages.forEach(msg => {
+                            const msgEl = createMsgElement(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id);
+                            fragment.appendChild(msgEl);
+                        });
+                        // Insert before existing content
+                        msgs.insertBefore(fragment, msgs.firstChild);
+                        // Restore scroll position
+                        const scrollHeightAfter = msgs.scrollHeight;
+                        msgs.scrollTop = scrollTopBefore + (scrollHeightAfter - scrollHeightBefore);
+                    }
                 }
 
                 if (data.type === 'message_deleted') {
@@ -177,7 +254,10 @@
                 }
             } catch(e) {}
         };
-        ws.onclose = () => setTimeout(connect, 3000);
+        ws.onclose = () => {
+            stopHeartbeat();
+            setTimeout(connect, 3000);
+        };
     }
 
     showInitialMessages();
@@ -187,6 +267,13 @@
     document.getElementById('kCloseBtn').onclick = toggleChat;
     document.getElementById('kSendBtn').onclick = sendMessage;
     inp.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+
+    // Handle scroll to load more messages automatically
+    msgs.onscroll = () => {
+        if (msgs.scrollTop < 50 && hasMoreMessages && !loadingMore) {
+            loadMoreMessages();
+        }
+    };
 
     inp.oninput = () => { if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({ type: 'typing_update', text: inp.value })); } };
 

@@ -4,10 +4,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
-import { PasswordModal } from './components/PasswordModal';
-import { TokenModal } from './components/TokenModal';
 import { OptionsModal } from './components/OptionsModal';
-import { TimezoneModal } from './components/TimezoneModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { Toast } from './components/Toast';
 
@@ -36,8 +33,10 @@ function AppContent() {
     disconnect,
     sendReply,
     getHistory,
+    loadMoreHistory,
     deleteMessage,
     deleteSession,
+    deleteSystemMessages,
     changePassword,
     changeApiToken,
     updateWebhook,
@@ -45,6 +44,7 @@ function AppContent() {
     updateRealtimeTyping,
     updateAllowedOrigins,
     updateRateLimit,
+    updateMessageLimits,
   } = useWebSocket(handleSystemMessage, soundEnabled);
 
   const handleSoundEnabledChange = (enabled) => {
@@ -129,6 +129,24 @@ function AppContent() {
     setConfig({ maxMessagesPerMinute, maxMessageLength });
   };
 
+  const handleSaveMessageLimits = (adminMessagesLimit, widgetMessagesLimit) => {
+    updateMessageLimits(adminMessagesLimit, widgetMessagesLimit);
+    setConfig({ adminMessagesLimit, widgetMessagesLimit });
+  };
+
+  const handleLoadMore = () => {
+    if (state.messages.length > 0 && state.activeUserId) {
+      const oldestMsgId = state.messages[0].id;
+      loadMoreHistory(state.activeUserId, oldestMsgId);
+    }
+  };
+
+  const handleDeleteSystemMessages = () => {
+    if (state.activeUserId) {
+      deleteSystemMessages(state.activeUserId);
+    }
+  };
+
   const handleSaveTimeSettings = (timezone, dateFormat, timeFormat) => {
     updateTimeSettings(timezone, dateFormat, timeFormat);
     setConfig({ timezone, dateFormat, timeFormat });
@@ -160,39 +178,28 @@ function AppContent() {
       <ChatArea
         onSendMessage={handleSendMessage}
         onDeleteMessage={handleDeleteMessage}
+        onLoadMore={handleLoadMore}
+        onDeleteSystemMessages={handleDeleteSystemMessages}
       />
 
       {/* Modals */}
-      <PasswordModal
-        isOpen={activeModal === 'password'}
-        onClose={handleCloseModal}
-        onSave={handleSavePassword}
-      />
-      <TokenModal
-        isOpen={activeModal === 'token'}
-        onClose={handleCloseModal}
-        onSave={handleSaveToken}
-        currentToken={state.config.apiToken}
-        onCopy={() => showToast('Токен скопійовано', 'success')}
-      />
       <OptionsModal
         isOpen={activeModal === 'options'}
         onClose={handleCloseModal}
         config={state.config}
+        onSavePassword={handleSavePassword}
+        onSaveToken={handleSaveToken}
         onSaveWebhook={handleSaveWebhook}
+        onSaveTimeSettings={handleSaveTimeSettings}
         onSaveRealtimeTyping={handleSaveRealtimeTyping}
         onSaveAllowedOrigins={handleSaveAllowedOrigins}
         onSaveRateLimit={handleSaveRateLimit}
+        onSaveMessageLimits={handleSaveMessageLimits}
         soundEnabled={soundEnabled}
         onSoundEnabledChange={handleSoundEnabledChange}
         soundType={soundType}
         onSoundTypeChange={handleSoundTypeChange}
-      />
-      <TimezoneModal
-        isOpen={activeModal === 'timezone'}
-        onClose={handleCloseModal}
-        config={state.config}
-        onSave={handleSaveTimeSettings}
+        onCopyToken={() => showToast('Токен скопійовано', 'success')}
       />
       <ConfirmModal
         isOpen={activeModal === 'logout'}

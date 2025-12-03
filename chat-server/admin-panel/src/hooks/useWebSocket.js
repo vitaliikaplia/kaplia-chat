@@ -21,8 +21,11 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateUserInfo,
     removeUser,
     setMessages,
+    prependMessages,
+    setLoadingMore,
     addMessage,
     deleteMessage,
+    deleteSystemMessagesFromState,
     setTyping,
     setNotification,
     setUserOnline,
@@ -195,15 +198,27 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
 
       case 'history_data':
         if (data.targetId === activeUserIdRef.current) {
-          setMessages(
-            (data.messages || []).map(m => ({
-              id: m.id,
-              userId: data.targetId,
-              sender: m.sender,
-              text: m.text,
-              timestamp: m.timestamp,
-            }))
-          );
+          const messages = (data.messages || []).map(m => ({
+            id: m.id,
+            userId: data.targetId,
+            sender: m.sender,
+            text: m.text,
+            timestamp: m.timestamp,
+          }));
+          setMessages(messages, data.hasMore || false);
+        }
+        break;
+
+      case 'more_history':
+        if (data.targetId === activeUserIdRef.current) {
+          const messages = (data.messages || []).map(m => ({
+            id: m.id,
+            userId: data.targetId,
+            sender: m.sender,
+            text: m.text,
+            timestamp: m.timestamp,
+          }));
+          prependMessages(messages, data.hasMore || false);
         }
         break;
 
@@ -213,6 +228,13 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
 
       case 'session_deleted':
         removeUser(data.id);
+        break;
+
+      case 'system_messages_deleted':
+        // Remove all system messages from current chat
+        if (data.targetId === activeUserIdRef.current) {
+          deleteSystemMessagesFromState();
+        }
         break;
 
       case 'system':
@@ -233,6 +255,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     setMessages,
     addMessage,
     deleteMessage,
+    deleteSystemMessagesFromState,
     setTyping,
     removeUser,
     setNotification,
@@ -312,6 +335,8 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             allowedOrigins: data.allowedOrigins || '',
             maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
             maxMessageLength: data.maxMessageLength || 1000,
+            adminMessagesLimit: data.adminMessagesLimit || 20,
+            widgetMessagesLimit: data.widgetMessagesLimit || 20,
           });
           return; // Don't pass to handleMessage since we handled it here
         }
@@ -368,12 +393,21 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'get_history', targetId });
   }, [send]);
 
+  const loadMoreHistory = useCallback((targetId, beforeId) => {
+    setLoadingMore(true);
+    send({ type: 'get_history', targetId, beforeId });
+  }, [send, setLoadingMore]);
+
   const deleteMessageCmd = useCallback((msgId, targetId) => {
     send({ type: 'delete_message', msgId, targetId });
   }, [send]);
 
   const deleteSession = useCallback((targetId) => {
     send({ type: 'delete_session', targetId });
+  }, [send]);
+
+  const deleteSystemMessages = useCallback((targetId) => {
+    send({ type: 'delete_system_messages', targetId });
   }, [send]);
 
   const changePassword = useCallback((newPassword) => {
@@ -402,6 +436,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
 
   const updateRateLimit = useCallback((maxMessagesPerMinute, maxMessageLength) => {
     send({ type: 'update_rate_limit', maxMessagesPerMinute, maxMessageLength });
+  }, [send]);
+
+  const updateMessageLimits = useCallback((adminMessagesLimit, widgetMessagesLimit) => {
+    send({ type: 'update_message_limits', adminMessagesLimit, widgetMessagesLimit });
   }, [send]);
 
   const disconnect = useCallback(() => {
@@ -444,8 +482,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send,
     sendReply,
     getHistory,
+    loadMoreHistory,
     deleteMessage: deleteMessageCmd,
     deleteSession,
+    deleteSystemMessages,
     changePassword,
     changeApiToken,
     updateWebhook,
@@ -453,5 +493,6 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateRealtimeTyping,
     updateAllowedOrigins,
     updateRateLimit,
+    updateMessageLimits,
   };
 }

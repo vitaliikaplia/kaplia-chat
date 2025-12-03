@@ -4,23 +4,92 @@ import { Message } from './Message';
 import { SystemMessage } from './SystemMessage';
 import { isDifferentDay, getDateDivider } from '../utils/dateUtils';
 
-export function ChatArea({ onSendMessage, onDeleteMessage }) {
+export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteSystemMessages }) {
   const { state } = useChat();
-  const { activeUserId, messages, usersInfo, typingText, config } = state;
+  const { activeUserId, messages, usersInfo, typingText, config, hasMoreMessages, loadingMoreMessages } = state;
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const isInitialLoadRef = useRef(true);
+  const prevMessagesLengthRef = useRef(0);
+  const scrollHeightBeforeLoadRef = useRef(0);
+  const isPrependingRef = useRef(false);
 
   const userInfo = activeUserId ? usersInfo[activeUserId] : null;
   const userName = userInfo?.user_name || userInfo?.name || 'Гість';
   const userEmail = userInfo?.user_email || userInfo?.email || '';
 
-  // Auto-scroll to bottom when new messages arrive
+  // Reset initial load flag when active user changes
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    isInitialLoadRef.current = true;
+    prevMessagesLengthRef.current = 0;
+  }, [activeUserId]);
+
+  // Auto-scroll to bottom on initial load or new messages at end
+  useEffect(() => {
+    if (messages.length === 0) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // If this is initial load or new message added at end, scroll to bottom
+    if (isInitialLoadRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+      isInitialLoadRef.current = false;
+    } else if (messages.length > prevMessagesLengthRef.current) {
+      // Check if new message was added at end (not prepended)
+      const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (wasAtBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
     }
-  }, [messages, typingText]);
+
+    prevMessagesLengthRef.current = messages.length;
+  }, [messages]);
+
+  // Scroll to bottom when typing indicator appears
+  useEffect(() => {
+    if (typingText && messagesEndRef.current) {
+      const container = messagesContainerRef.current;
+      if (container) {
+        const wasAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+        if (wasAtBottom) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    }
+  }, [typingText]);
+
+  // Handle scroll to load more messages
+  const handleScroll = () => {
+    if (!hasMoreMessages || loadingMoreMessages) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Load more when scrolled near top (within 50px)
+    if (container.scrollTop < 50) {
+      // Save scroll height before loading
+      scrollHeightBeforeLoadRef.current = container.scrollHeight;
+      isPrependingRef.current = true;
+      onLoadMore();
+    }
+  };
+
+  // Restore scroll position after prepending messages
+  useEffect(() => {
+    if (!isPrependingRef.current) return;
+
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    // Calculate new scroll position to maintain view
+    const newScrollHeight = container.scrollHeight;
+    const scrollDiff = newScrollHeight - scrollHeightBeforeLoadRef.current;
+    container.scrollTop = scrollDiff;
+
+    isPrependingRef.current = false;
+  }, [messages]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -100,15 +169,24 @@ export function ChatArea({ onSendMessage, onDeleteMessage }) {
     <div className="flex-1 flex flex-col bg-gray-50 h-full">
       {/* Chat header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
-        <div className="font-medium text-gray-800">
-          {userName}{userEmail && `: ${userEmail}`}
+        <div className="flex items-center justify-between">
+          <div className="font-medium text-gray-800">
+            {userName}{userEmail && `: ${userEmail}`}
+          </div>
+          <button
+            onClick={onDeleteSystemMessages}
+            className="text-xs text-gray-400 hover:text-red-500 transition"
+            title="Видалити системні повідомлення"
+          >
+            🗑 Очистити лог
+          </button>
         </div>
-        <div className="text-xs text-gray-500 mt-1">
+        <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
           {userInfo?.user_session && (
-            <span>user_session: {userInfo.user_session}, </span>
+            <span>user_session: {userInfo.user_session},</span>
           )}
           {userInfo?.user_id && (
-            <span>user_id: {userInfo.user_id}, </span>
+            <span>user_id: {userInfo.user_id},</span>
           )}
           <span
             className="cursor-pointer hover:text-blue-500"
@@ -117,28 +195,35 @@ export function ChatArea({ onSendMessage, onDeleteMessage }) {
           >
             target_id: {activeUserId}
           </span>
+          {userInfo?.current_url && (
+            <>
+              <span className="text-gray-400">📍</span>
+              <a
+                href={userInfo.current_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-cyan-600 hover:text-cyan-800 hover:underline truncate max-w-xs"
+                title={userInfo.current_url}
+              >
+                {userInfo.current_url}
+              </a>
+            </>
+          )}
         </div>
-        {userInfo?.current_url && (
-          <div className="text-xs mt-1 flex items-center gap-1">
-            <span className="text-gray-400">📍</span>
-            <a
-              href={userInfo.current_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan-600 hover:text-cyan-800 hover:underline truncate max-w-md"
-              title={userInfo.current_url}
-            >
-              {userInfo.current_url}
-            </a>
-          </div>
-        )}
       </div>
 
       {/* Messages container */}
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4"
+        onScroll={handleScroll}
       >
+        {/* Load more indicator */}
+        {loadingMoreMessages && (
+          <div className="text-center py-2 mb-2">
+            <span className="text-gray-500 text-sm">Завантаження...</span>
+          </div>
+        )}
         {messages.length === 0 ? (
           <div className="text-center text-gray-400 mt-8">
             Немає повідомлень

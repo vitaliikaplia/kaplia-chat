@@ -29,7 +29,9 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Smart Navigation Detection**: Distinguishes between page navigation and actual tab switches - only logs relevant events.
 - **Message Management**: Ability to delete specific messages instantly.
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
+- **Clear Activity Log**: One-click button to delete all system messages from a chat.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
+- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS) in one modal with tabs.
 - **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
 - **Remember Me**: Option to stay logged in across browser sessions.
 - **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background). No duplicate "login successful" notifications on reconnect.
@@ -39,6 +41,15 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Rate Limiting**: Configure maximum messages per minute per user (default: 20).
 - **Message Length Limit**: Set maximum characters per message (default: 1000).
 - **Real-time Feedback**: Users receive instant feedback when limits are exceeded.
+
+### Message Pagination
+- **Lazy Loading**: Messages load on scroll (both admin panel and widget).
+- **Configurable Limits**: Separate limits for admin panel and widget (default: 50 messages).
+- **Smooth Scroll**: Scroll position preserved when loading older messages.
+
+### Connection Stability
+- **WebSocket Heartbeat**: Ping/pong mechanism keeps connection alive in background tabs.
+- **Event Deduplication**: Prevents spam of repeated system events (60-second window).
 
 ### Smart Widget
 - **Auto-Open**: The widget automatically expands when an admin sends a reply.

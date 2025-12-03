@@ -140,34 +140,13 @@ export function Sidebar({
       </div>
 
       {/* Settings bar */}
-      <div className="border-t border-gray-200 p-2 flex justify-around bg-gray-50">
-        <button
-          onClick={() => onOpenSettings('password')}
-          className="p-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-          title="Змінити пароль"
-        >
-          <span className="text-lg">🔐</span>
-        </button>
-        <button
-          onClick={() => onOpenSettings('token')}
-          className="p-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-          title="API токен"
-        >
-          <span className="text-lg">🔑</span>
-        </button>
+      <div className="border-t border-gray-200 p-2 flex justify-center gap-4 bg-gray-50">
         <button
           onClick={() => onOpenSettings('options')}
           className="p-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-          title="Опції"
+          title="Налаштування"
         >
           <span className="text-lg">⚙️</span>
-        </button>
-        <button
-          onClick={() => onOpenSettings('timezone')}
-          className="p-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-          title="Часовий пояс"
-        >
-          <span className="text-lg">🌍</span>
         </button>
         <button
           onClick={onLogout}
