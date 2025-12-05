@@ -1,0 +1,168 @@
+{
+  "sounds": {
+    "chime": "Дзвіночок",
+    "pop": "Поп",
+    "ding": "Дінь",
+    "bubble": "Бульбашка",
+    "magic": "Магія",
+    "xylophone": "Ксилофон",
+    "water": "Крапля",
+    "bell": "Дзвін",
+    "whistle": "Свист",
+    "coin": "Монетка"
+  },
+  "login": {
+    "title": "Вхід в адмін-панель",
+    "username": "Логін",
+    "password": "Пароль",
+    "passwordPlaceholder": "Введіть пароль",
+    "rememberMe": "Запам'ятати мене",
+    "submit": "Увійти",
+    "loading": "Вхід...",
+    "error": "Невірний логін або пароль"
+  },
+  "sidebar": {
+    "title": "Чати",
+    "noChats": "Немає активних чатів",
+    "guest": "Гість",
+    "tabActive": "Вкладка активна",
+    "tabBackground": "Вкладка у фоні",
+    "copyId": "Клікніть для копіювання",
+    "deleteChat": "Видалити чат",
+    "settings": "Налаштування",
+    "logout": "Вийти"
+  },
+  "chat": {
+    "guest": "Гість",
+    "selectChat": "Виберіть чат для початку спілкування",
+    "noMessages": "Немає повідомлень",
+    "clearLog": "Очистити лог",
+    "clearLogTitle": "Видалити системні повідомлення",
+    "typing": "Друкує:",
+    "inputPlaceholder": "Введіть повідомлення...",
+    "loading": "Завантаження...",
+    "copyId": "Клікніть для копіювання"
+  },
+  "systemEvents": {
+    "user_connected": "Користувач онлайн",
+    "user_left": "Користувач офлайн",
+    "tab_active": "Вкладка активна",
+    "tab_inactive": "Вкладка у фоні",
+    "chat_opened": "Чат відкрито",
+    "chat_closed": "Чат закрито",
+    "page_visit": "Перейшов на сторінку"
+  },
+  "confirm": {
+    "title": "Підтвердження",
+    "yes": "Так",
+    "cancel": "Скасувати",
+    "deleteChat": "Видалення чату",
+    "deleteChatMessage": "Видалити цей чат та всю історію повідомлень?",
+    "delete": "Видалити",
+    "logoutTitle": "Вихід",
+    "logoutMessage": "Вийти з адмін-панелі?"
+  },
+  "settings": {
+    "title": "Налаштування",
+    "tabs": {
+      "password": "Пароль",
+      "token": "API токен",
+      "webhook": "Webhook",
+      "time": "Час",
+      "sound": "Звук",
+      "messages": "Повідомлення",
+      "spam": "Спам",
+      "other": "Інше"
+    },
+    "password": {
+      "new": "Новий пароль",
+      "newPlaceholder": "Введіть новий пароль",
+      "confirm": "Підтвердіть пароль",
+      "confirmPlaceholder": "Повторіть пароль",
+      "save": "Зберегти пароль",
+      "errorEmpty": "Введіть новий пароль",
+      "errorMismatch": "Паролі не співпадають",
+      "errorLength": "Пароль має бути не менше 6 символів"
+    },
+    "token": {
+      "label": "Токен для API запитів",
+      "placeholder": "API токен",
+      "copy": "Копіювати",
+      "generate": "Генерувати новий токен",
+      "save": "Зберегти",
+      "copied": "Токен скопійовано"
+    },
+    "webhook": {
+      "enabled": "Webhook увімкнено",
+      "url": "URL вебхуку",
+      "urlPlaceholder": "https://example.com/webhook",
+      "urlHint": "Сюди будуть надсилатися POST-запити при нових повідомленнях",
+      "save": "Зберегти"
+    },
+    "time": {
+      "timezone": "Часовий пояс",
+      "dateFormat": "Формат дати",
+      "dateFormatPlaceholder": "d.m.Y",
+      "dateFormatHint": "Формати: d (день), m (місяць), Y (рік)",
+      "timeFormat": "Формат часу",
+      "timeFormatPlaceholder": "H:i",
+      "timeFormatHint": "Формати: H (години 24), g (години 12), i (хвилини), s (секунди), A (AM/PM)",
+      "save": "Зберегти"
+    },
+    "sound": {
+      "enabled": "Звукові сповіщення",
+      "enabledHint": "Програвати звук при нових повідомленнях",
+      "type": "Тип звуку сповіщення",
+      "test": "Тест"
+    },
+    "messages": {
+      "adminLimit": "Повідомлень в адмін чаті",
+      "adminLimitHint": "Скільки останніх повідомлень завантажувати в адмін панелі",
+      "widgetLimit": "Повідомлень у віджеті",
+      "widgetLimitHint": "Скільки останніх повідомлень завантажувати у віджеті клієнта",
+      "save": "Зберегти"
+    },
+    "spam": {
+      "maxPerMinute": "Макс. повідомлень за хвилину",
+      "maxPerMinuteHint": "Скільки повідомлень може відправити один клієнт за хвилину",
+      "maxLength": "Макс. символів в повідомленні",
+      "maxLengthHint": "Максимальна довжина одного повідомлення",
+      "save": "Зберегти"
+    },
+    "other": {
+      "realtimeTyping": "Перегляд друку в реальному часі",
+      "realtimeTypingHint": "Бачити що друкує клієнт до відправки",
+      "save": "Зберегти",
+      "systemLogs": "Системні логи",
+      "systemLogsHint": "Оберіть які події записувати в історію чату",
+      "logOnline": "Онлайн",
+      "logOnlineTitle": "Користувач онлайн/офлайн",
+      "logTab": "Вкладка",
+      "logTabTitle": "Вкладка активна/у фоні",
+      "logWidget": "Віджет",
+      "logWidgetTitle": "Віджет відкрито/закрито",
+      "logPages": "Сторінки",
+      "logPagesTitle": "Перехід на іншу сторінку",
+      "cors": "Дозволені домени (CORS)",
+      "corsHint": "Один домен на рядок. Підтримується * як wildcard. Пусто = всі домени дозволено.",
+      "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
+      "corsSave": "Зберегти домени",
+      "language": "Мова інтерфейсу",
+      "languageHint": "Оберіть мову адмін-панелі"
+    }
+  },
+  "toast": {
+    "loginSuccess": "Успішна авторизація!",
+    "logoutSuccess": "Ви вийшли з системи",
+    "passwordSaved": "Пароль збережено!",
+    "tokenSaved": "API токен збережено!",
+    "webhookSaved": "Webhook збережено!",
+    "timeSaved": "Налаштування часу збережено!",
+    "realtimeTypingOn": "Перегляд набору: УВІМКНЕНО",
+    "realtimeTypingOff": "Перегляд набору: ВИМКНЕНО",
+    "corsSaved": "Дозволені домени збережено!",
+    "rateLimitSaved": "Ліміти повідомлень збережено!",
+    "messageLimitsSaved": "Ліміти збережено!",
+    "languageSaved": "Мову змінено!"
+  }
+}

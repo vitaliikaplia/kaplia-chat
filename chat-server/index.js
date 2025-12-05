@@ -25,6 +25,7 @@ let systemLogsConfig = {
 let allowedOrigins = [];
 let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
 let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
+let adminLanguage = 'uk';
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
@@ -45,7 +46,8 @@ db.serialize(() => {
                                                   log_tab_activity INTEGER DEFAULT 1,
                                                   log_chat_widget INTEGER DEFAULT 1,
                                                   log_page_visits INTEGER DEFAULT 1,
-                                                  allowed_origins TEXT DEFAULT ''
+                                                  allowed_origins TEXT DEFAULT '',
+                                                  admin_language TEXT DEFAULT 'uk'
             )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS messages (
@@ -84,6 +86,7 @@ db.serialize(() => {
             rateLimitConfig.maxMessageLength = row.max_message_length || 1000;
             messageLoadConfig.adminMessagesLimit = row.admin_messages_limit || 20;
             messageLoadConfig.widgetMessagesLimit = row.widget_messages_limit || 20;
+            adminLanguage = row.admin_language || 'uk';
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -105,6 +108,7 @@ db.serialize(() => {
                 if (!colNames.includes('max_message_length')) db.run("ALTER TABLE admins ADD COLUMN max_message_length INTEGER DEFAULT 1000");
                 if (!colNames.includes('admin_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN admin_messages_limit INTEGER DEFAULT 20");
                 if (!colNames.includes('widget_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN widget_messages_limit INTEGER DEFAULT 20");
+                if (!colNames.includes('admin_language')) db.run("ALTER TABLE admins ADD COLUMN admin_language TEXT DEFAULT 'uk'");
             });
         }
     });
@@ -369,7 +373,8 @@ wss.on('connection', (ws, req) => {
                     maxMessagesPerMinute: rateLimitConfig.maxMessagesPerMinute,
                     maxMessageLength: rateLimitConfig.maxMessageLength,
                     adminMessagesLimit: messageLoadConfig.adminMessagesLimit,
-                    widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit
+                    widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit,
+                    language: adminLanguage
                 }));
 
                 getAllSessions((rows) => {
@@ -450,6 +455,12 @@ wss.on('connection', (ws, req) => {
                             db.run("UPDATE admins SET allowed_origins = ? WHERE username = ?", [data.origins, 'admin'], () => {
                                 allowedOrigins = data.origins.split('\n').filter(o => o.trim());
                                 ws.send(JSON.stringify({ type: 'system', text: 'Дозволені домени збережено!' }));
+                            });
+                        }
+                        if (data.type === 'update_language') {
+                            db.run("UPDATE admins SET admin_language = ? WHERE username = ?", [data.language, 'admin'], () => {
+                                adminLanguage = data.language;
+                                ws.send(JSON.stringify({ type: 'language_updated', language: data.language }));
                             });
                         }
                         if (data.type === 'update_rate_limit') {

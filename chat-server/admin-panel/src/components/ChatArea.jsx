@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import { useChat } from '../context/ChatContext';
+import { useTranslation } from '../i18n';
 import { Message } from './Message';
 import { SystemMessage } from './SystemMessage';
 import { isDifferentDay, getDateDivider } from '../utils/dateUtils';
 
-export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteSystemMessages }) {
+export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteSystemMessages, onOpenSidebar, sidebarOpen }) {
   const { state } = useChat();
+  const { t } = useTranslation();
   const { activeUserId, messages, usersInfo, typingText, config, hasMoreMessages, loadingMoreMessages } = state;
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef(null);
@@ -16,7 +18,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
   const isPrependingRef = useRef(false);
 
   const userInfo = activeUserId ? usersInfo[activeUserId] : null;
-  const userName = userInfo?.user_name || userInfo?.name || 'Гість';
+  const userName = userInfo?.user_name || userInfo?.name || t('chat.guest');
   const userEmail = userInfo?.user_email || userInfo?.email || '';
 
   // Reset initial load flag when active user changes
@@ -154,12 +156,25 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
 
   if (!activeUserId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center text-gray-500">
-          <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          <p>Виберіть чат для початку спілкування</p>
+      <div className="flex-1 flex flex-col bg-gray-50">
+        {/* Mobile header with burger menu */}
+        <div className="bg-white border-b border-gray-200 px-4 py-3 md:hidden">
+          <button
+            onClick={onOpenSidebar}
+            className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            <p>{t('chat.selectChat')}</p>
+          </div>
         </div>
       </div>
     );
@@ -170,15 +185,26 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
       {/* Chat header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="flex items-center justify-between">
-          <div className="font-medium text-gray-800">
-            {userName}{userEmail && `: ${userEmail}`}
+          <div className="flex items-center gap-2">
+            {/* Mobile burger menu */}
+            <button
+              onClick={onOpenSidebar}
+              className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition md:hidden"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div className="font-medium text-gray-800">
+              {userName}{userEmail && `: ${userEmail}`}
+            </div>
           </div>
           <button
             onClick={onDeleteSystemMessages}
             className="text-xs text-gray-400 hover:text-red-500 transition"
-            title="Видалити системні повідомлення"
+            title={t('chat.clearLogTitle')}
           >
-            🗑 Очистити лог
+            🗑 {t('chat.clearLog')}
           </button>
         </div>
         <div className="text-xs text-gray-500 mt-1 flex flex-wrap items-center gap-x-1">
@@ -191,7 +217,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
           <span
             className="cursor-pointer hover:text-blue-500"
             onClick={() => navigator.clipboard.writeText(activeUserId)}
-            title="Клікніть для копіювання"
+            title={t('chat.copyId')}
           >
             target_id: {activeUserId}
           </span>
@@ -221,12 +247,12 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
         {/* Load more indicator */}
         {loadingMoreMessages && (
           <div className="text-center py-2 mb-2">
-            <span className="text-gray-500 text-sm">Завантаження...</span>
+            <span className="text-gray-500 text-sm">{t('chat.loading')}</span>
           </div>
         )}
         {messages.length === 0 ? (
           <div className="text-center text-gray-400 mt-8">
-            Немає повідомлень
+            {t('chat.noMessages')}
           </div>
         ) : (
           renderMessages()
@@ -238,7 +264,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
       {config.realtimeTyping && typingText && (
         <div className="px-4 py-2 bg-yellow-50 border-t border-yellow-200">
           <div className="text-sm text-yellow-700">
-            <span className="font-medium">Друкує:</span> {typingText}
+            <span className="font-medium">{t('chat.typing')}</span> {typingText}
           </div>
         </div>
       )}
@@ -251,7 +277,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Введіть повідомлення..."
+            placeholder={t('chat.inputPlaceholder')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
           />
           <button

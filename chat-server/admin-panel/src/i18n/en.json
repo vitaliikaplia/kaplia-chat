@@ -1,0 +1,168 @@
+{
+  "sounds": {
+    "chime": "Chime",
+    "pop": "Pop",
+    "ding": "Ding",
+    "bubble": "Bubble",
+    "magic": "Magic",
+    "xylophone": "Xylophone",
+    "water": "Water drop",
+    "bell": "Bell",
+    "whistle": "Whistle",
+    "coin": "Coin"
+  },
+  "login": {
+    "title": "Admin Panel Login",
+    "username": "Username",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "rememberMe": "Remember me",
+    "submit": "Login",
+    "loading": "Logging in...",
+    "error": "Invalid username or password"
+  },
+  "sidebar": {
+    "title": "Chats",
+    "noChats": "No active chats",
+    "guest": "Guest",
+    "tabActive": "Tab is active",
+    "tabBackground": "Tab in background",
+    "copyId": "Click to copy",
+    "deleteChat": "Delete chat",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "chat": {
+    "guest": "Guest",
+    "selectChat": "Select a chat to start messaging",
+    "noMessages": "No messages",
+    "clearLog": "Clear log",
+    "clearLogTitle": "Delete system messages",
+    "typing": "Typing:",
+    "inputPlaceholder": "Enter message...",
+    "loading": "Loading...",
+    "copyId": "Click to copy"
+  },
+  "systemEvents": {
+    "user_connected": "User online",
+    "user_left": "User offline",
+    "tab_active": "Tab active",
+    "tab_inactive": "Tab in background",
+    "chat_opened": "Chat opened",
+    "chat_closed": "Chat closed",
+    "page_visit": "Navigated to page"
+  },
+  "confirm": {
+    "title": "Confirmation",
+    "yes": "Yes",
+    "cancel": "Cancel",
+    "deleteChat": "Delete chat",
+    "deleteChatMessage": "Delete this chat and all message history?",
+    "delete": "Delete",
+    "logoutTitle": "Logout",
+    "logoutMessage": "Logout from admin panel?"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "password": "Password",
+      "token": "API Token",
+      "webhook": "Webhook",
+      "time": "Time",
+      "sound": "Sound",
+      "messages": "Messages",
+      "spam": "Spam",
+      "other": "Other"
+    },
+    "password": {
+      "new": "New password",
+      "newPlaceholder": "Enter new password",
+      "confirm": "Confirm password",
+      "confirmPlaceholder": "Repeat password",
+      "save": "Save password",
+      "errorEmpty": "Enter new password",
+      "errorMismatch": "Passwords do not match",
+      "errorLength": "Password must be at least 6 characters"
+    },
+    "token": {
+      "label": "Token for API requests",
+      "placeholder": "API token",
+      "copy": "Copy",
+      "generate": "Generate new token",
+      "save": "Save",
+      "copied": "Token copied"
+    },
+    "webhook": {
+      "enabled": "Webhook enabled",
+      "url": "Webhook URL",
+      "urlPlaceholder": "https://example.com/webhook",
+      "urlHint": "POST requests will be sent here for new messages",
+      "save": "Save"
+    },
+    "time": {
+      "timezone": "Timezone",
+      "dateFormat": "Date format",
+      "dateFormatPlaceholder": "d.m.Y",
+      "dateFormatHint": "Formats: d (day), m (month), Y (year)",
+      "timeFormat": "Time format",
+      "timeFormatPlaceholder": "H:i",
+      "timeFormatHint": "Formats: H (24h), g (12h), i (minutes), s (seconds), A (AM/PM)",
+      "save": "Save"
+    },
+    "sound": {
+      "enabled": "Sound notifications",
+      "enabledHint": "Play sound for new messages",
+      "type": "Notification sound type",
+      "test": "Test"
+    },
+    "messages": {
+      "adminLimit": "Messages in admin chat",
+      "adminLimitHint": "How many messages to load in admin panel",
+      "widgetLimit": "Messages in widget",
+      "widgetLimitHint": "How many messages to load in client widget",
+      "save": "Save"
+    },
+    "spam": {
+      "maxPerMinute": "Max messages per minute",
+      "maxPerMinuteHint": "How many messages a client can send per minute",
+      "maxLength": "Max characters per message",
+      "maxLengthHint": "Maximum length of one message",
+      "save": "Save"
+    },
+    "other": {
+      "realtimeTyping": "Real-time typing preview",
+      "realtimeTypingHint": "See what client types before sending",
+      "save": "Save",
+      "systemLogs": "System logs",
+      "systemLogsHint": "Choose which events to log in chat history",
+      "logOnline": "Online",
+      "logOnlineTitle": "User online/offline",
+      "logTab": "Tab",
+      "logTabTitle": "Tab active/background",
+      "logWidget": "Widget",
+      "logWidgetTitle": "Widget opened/closed",
+      "logPages": "Pages",
+      "logPagesTitle": "Page navigation",
+      "cors": "Allowed domains (CORS)",
+      "corsHint": "One domain per line. Supports * as wildcard. Empty = all domains allowed.",
+      "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
+      "corsSave": "Save domains",
+      "language": "Interface language",
+      "languageHint": "Choose admin panel language"
+    }
+  },
+  "toast": {
+    "loginSuccess": "Login successful!",
+    "logoutSuccess": "You have been logged out",
+    "passwordSaved": "Password saved!",
+    "tokenSaved": "API token saved!",
+    "webhookSaved": "Webhook saved!",
+    "timeSaved": "Time settings saved!",
+    "realtimeTypingOn": "Typing preview: ENABLED",
+    "realtimeTypingOff": "Typing preview: DISABLED",
+    "corsSaved": "Allowed domains saved!",
+    "rateLimitSaved": "Rate limits saved!",
+    "messageLimitsSaved": "Limits saved!",
+    "languageSaved": "Language changed!"
+  }
+}

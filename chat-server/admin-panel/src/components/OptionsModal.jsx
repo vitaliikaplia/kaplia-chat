@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { playSound, soundOptions } from '../utils/notificationSound';
+import { useTranslation, LANGUAGES } from '../i18n';
 
 const TIMEZONE_OPTIONS = [
   { value: '-12', label: 'UTC -12:00' },
@@ -43,17 +44,6 @@ const TIMEZONE_OPTIONS = [
   { value: '14', label: 'UTC +14:00' },
 ];
 
-const tabs = [
-  { id: 'password', label: 'Пароль' },
-  { id: 'token', label: 'API токен' },
-  { id: 'webhook', label: 'Webhook' },
-  { id: 'time', label: 'Час' },
-  { id: 'sound', label: 'Звук' },
-  { id: 'messages', label: 'Повідомлення' },
-  { id: 'spam', label: 'Спам' },
-  { id: 'other', label: 'Інше' },
-];
-
 export function OptionsModal({
   isOpen,
   onClose,
@@ -64,6 +54,7 @@ export function OptionsModal({
   onSaveTimeSettings,
   onSaveRealtimeTyping,
   onSaveSystemLogs,
+  onSaveLanguage,
   onSaveAllowedOrigins,
   onSaveRateLimit,
   onSaveMessageLimits,
@@ -73,7 +64,34 @@ export function OptionsModal({
   onSoundTypeChange,
   onCopyToken
 }) {
+  const { t, language } = useTranslation();
   const [activeTab, setActiveTab] = useState('password');
+  const tabsContainerRef = useRef(null);
+  const tabRefs = useRef({});
+
+  const handleTabClick = (tabId) => {
+    setActiveTab(tabId);
+    // Scroll to make the active tab visible with smooth animation
+    const tabEl = tabRefs.current[tabId];
+    const container = tabsContainerRef.current;
+    if (tabEl && container) {
+      const containerRect = container.getBoundingClientRect();
+      const tabRect = tabEl.getBoundingClientRect();
+      const scrollLeft = tabEl.offsetLeft - containerRect.width / 2 + tabRect.width / 2;
+      container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+    }
+  };
+
+  const tabs = [
+    { id: 'password', label: t('settings.tabs.password') },
+    { id: 'token', label: t('settings.tabs.token') },
+    { id: 'webhook', label: t('settings.tabs.webhook') },
+    { id: 'time', label: t('settings.tabs.time') },
+    { id: 'sound', label: t('settings.tabs.sound') },
+    { id: 'messages', label: t('settings.tabs.messages') },
+    { id: 'spam', label: t('settings.tabs.spam') },
+    { id: 'other', label: t('settings.tabs.other') },
+  ];
 
   // Password
   const [password, setPassword] = useState('');
@@ -124,15 +142,15 @@ export function OptionsModal({
   // Handlers
   const handleSavePassword = () => {
     if (!password) {
-      setPasswordError('Введіть новий пароль');
+      setPasswordError(t('settings.password.errorEmpty'));
       return;
     }
     if (password !== confirmPassword) {
-      setPasswordError('Паролі не співпадають');
+      setPasswordError(t('settings.password.errorMismatch'));
       return;
     }
     if (password.length < 6) {
-      setPasswordError('Пароль має бути не менше 6 символів');
+      setPasswordError(t('settings.password.errorLength'));
       return;
     }
     onSavePassword(password);
@@ -178,6 +196,10 @@ export function OptionsModal({
     onSaveSystemLogs(setting, !currentValue);
   };
 
+  const handleLanguageChange = (newLang) => {
+    onSaveLanguage(newLang);
+  };
+
   const handleSaveOrigins = () => {
     onSaveAllowedOrigins(allowedOrigins);
   };
@@ -191,22 +213,40 @@ export function OptionsModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Налаштування" size="xl">
-      {/* Tabs */}
-      <div className="flex flex-wrap border-b border-gray-200 mb-4 -mt-2 gap-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
-              activeTab === tab.id
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <Modal isOpen={isOpen} onClose={onClose} title={t('settings.title')} size="xl">
+      {/* Tabs with fade effect */}
+      <div className="relative mb-4 -mt-2">
+        {/* Left fade gradient */}
+        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+        {/* Right fade gradient */}
+        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
+        {/* Scrollable tabs container */}
+        <div
+          ref={tabsContainerRef}
+          className="overflow-x-auto scrollbar-hide"
+          style={{
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          <div className="flex border-b border-gray-200 px-4">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                ref={(el) => (tabRefs.current[tab.id] = el)}
+                onClick={() => handleTabClick(tab.id)}
+                className={`px-3 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Tab content */}
@@ -216,27 +256,27 @@ export function OptionsModal({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Новий пароль
+                {t('settings.password.new')}
               </label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="Введіть новий пароль"
+                placeholder={t('settings.password.newPlaceholder')}
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Підтвердіть пароль
+                {t('settings.password.confirm')}
               </label>
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="Повторіть пароль"
+                placeholder={t('settings.password.confirmPlaceholder')}
               />
             </div>
 
@@ -248,7 +288,7 @@ export function OptionsModal({
               onClick={handleSavePassword}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти пароль
+              {t('settings.password.save')}
             </button>
           </div>
         )}
@@ -258,7 +298,7 @@ export function OptionsModal({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Токен для API запитів
+                {t('settings.token.label')}
               </label>
               <div className="flex gap-2">
                 <input
@@ -266,12 +306,12 @@ export function OptionsModal({
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-mono text-sm"
-                  placeholder="API токен"
+                  placeholder={t('settings.token.placeholder')}
                 />
                 <button
                   onClick={copyToken}
                   className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
-                  title="Копіювати"
+                  title={t('settings.token.copy')}
                 >
                   📋
                 </button>
@@ -282,14 +322,14 @@ export function OptionsModal({
               onClick={generateToken}
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition"
             >
-              🔄 Генерувати новий токен
+              🔄 {t('settings.token.generate')}
             </button>
 
             <button
               onClick={handleSaveToken}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти
+              {t('settings.token.save')}
             </button>
           </div>
         )}
@@ -298,7 +338,7 @@ export function OptionsModal({
         {activeTab === 'webhook' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Webhook увімкнено</span>
+              <span className="text-sm font-medium text-gray-700">{t('settings.webhook.enabled')}</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -312,17 +352,17 @@ export function OptionsModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                URL вебхуку
+                {t('settings.webhook.url')}
               </label>
               <input
                 type="url"
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-                placeholder="https://example.com/webhook"
+                placeholder={t('settings.webhook.urlPlaceholder')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Сюди будуть надсилатися POST-запити при нових повідомленнях
+                {t('settings.webhook.urlHint')}
               </p>
             </div>
 
@@ -330,7 +370,7 @@ export function OptionsModal({
               onClick={handleSaveWebhook}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти
+              {t('settings.webhook.save')}
             </button>
           </div>
         )}
@@ -340,7 +380,7 @@ export function OptionsModal({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Часовий пояс
+                {t('settings.time.timezone')}
               </label>
               <select
                 value={timezone}
@@ -357,33 +397,33 @@ export function OptionsModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Формат дати
+                {t('settings.time.dateFormat')}
               </label>
               <input
                 type="text"
                 value={dateFormat}
                 onChange={(e) => setDateFormat(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-mono"
-                placeholder="d.m.Y"
+                placeholder={t('settings.time.dateFormatPlaceholder')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Формати: d (день), m (місяць), Y (рік)
+                {t('settings.time.dateFormatHint')}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Формат часу
+                {t('settings.time.timeFormat')}
               </label>
               <input
                 type="text"
                 value={timeFormat}
                 onChange={(e) => setTimeFormat(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition font-mono"
-                placeholder="H:i"
+                placeholder={t('settings.time.timeFormatPlaceholder')}
               />
               <p className="text-xs text-gray-500 mt-1">
-                Формати: H (години 24), g (години 12), i (хвилини), s (секунди), A (AM/PM)
+                {t('settings.time.timeFormatHint')}
               </p>
             </div>
 
@@ -391,7 +431,7 @@ export function OptionsModal({
               onClick={handleSaveTime}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти
+              {t('settings.time.save')}
             </button>
           </div>
         )}
@@ -401,8 +441,8 @@ export function OptionsModal({
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <span className="text-sm font-medium text-gray-700">Звукові сповіщення</span>
-                <p className="text-xs text-gray-500">Програвати звук при нових повідомленнях</p>
+                <span className="text-sm font-medium text-gray-700">{t('settings.sound.enabled')}</span>
+                <p className="text-xs text-gray-500">{t('settings.sound.enabledHint')}</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -417,7 +457,7 @@ export function OptionsModal({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Тип звуку сповіщення
+                {t('settings.sound.type')}
               </label>
               <div className="space-y-2">
                 {soundOptions.map((sound) => (
@@ -438,7 +478,7 @@ export function OptionsModal({
                         onChange={() => onSoundTypeChange(sound.id)}
                         className="w-4 h-4 text-blue-500 focus:ring-blue-500"
                       />
-                      <span className="text-sm text-gray-700">{sound.name}</span>
+                      <span className="text-sm text-gray-700">{t(sound.nameKey)}</span>
                     </div>
                     <button
                       onClick={(e) => {
@@ -446,9 +486,8 @@ export function OptionsModal({
                         playSound(sound.id);
                       }}
                       className="px-3 py-1 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-100 rounded transition"
-                      title="Прослухати"
                     >
-                      ▶ Тест
+                      ▶ {t('settings.sound.test')}
                     </button>
                   </div>
                 ))}
@@ -462,7 +501,7 @@ export function OptionsModal({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Повідомлень в адмін чаті
+                {t('settings.messages.adminLimit')}
               </label>
               <input
                 type="number"
@@ -473,13 +512,13 @@ export function OptionsModal({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Скільки останніх повідомлень завантажувати в адмін панелі
+                {t('settings.messages.adminLimitHint')}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Повідомлень у віджеті
+                {t('settings.messages.widgetLimit')}
               </label>
               <input
                 type="number"
@@ -490,7 +529,7 @@ export function OptionsModal({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Скільки останніх повідомлень завантажувати у віджеті клієнта
+                {t('settings.messages.widgetLimitHint')}
               </p>
             </div>
 
@@ -498,7 +537,7 @@ export function OptionsModal({
               onClick={handleSaveMessageLimits}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти
+              {t('settings.messages.save')}
             </button>
           </div>
         )}
@@ -508,7 +547,7 @@ export function OptionsModal({
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Макс. повідомлень за хвилину
+                {t('settings.spam.maxPerMinute')}
               </label>
               <input
                 type="number"
@@ -519,13 +558,13 @@ export function OptionsModal({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Скільки повідомлень може відправити один клієнт за хвилину
+                {t('settings.spam.maxPerMinuteHint')}
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Макс. символів в повідомленні
+                {t('settings.spam.maxLength')}
               </label>
               <input
                 type="number"
@@ -536,7 +575,7 @@ export function OptionsModal({
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
               />
               <p className="text-xs text-gray-500 mt-1">
-                Максимальна довжина одного повідомлення
+                {t('settings.spam.maxLengthHint')}
               </p>
             </div>
 
@@ -544,7 +583,7 @@ export function OptionsModal({
               onClick={handleSaveRateLimit}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
-              Зберегти
+              {t('settings.spam.save')}
             </button>
           </div>
         )}
@@ -555,8 +594,8 @@ export function OptionsModal({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-sm font-medium text-gray-700">Перегляд друку в реальному часі</span>
-                  <p className="text-xs text-gray-500">Бачити що друкує клієнт до відправки</p>
+                  <span className="text-sm font-medium text-gray-700">{t('settings.other.realtimeTyping')}</span>
+                  <p className="text-xs text-gray-500">{t('settings.other.realtimeTypingHint')}</p>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
@@ -572,7 +611,7 @@ export function OptionsModal({
                 onClick={handleSaveTyping}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
               >
-                Зберегти
+                {t('settings.other.save')}
               </button>
             </div>
 
@@ -580,8 +619,8 @@ export function OptionsModal({
 
             <div className="space-y-3">
               <div>
-                <span className="text-sm font-medium text-gray-700">Системні логи</span>
-                <p className="text-xs text-gray-500 mb-3">Оберіть які події записувати в історію чату</p>
+                <span className="text-sm font-medium text-gray-700">{t('settings.other.systemLogs')}</span>
+                <p className="text-xs text-gray-500 mb-3">{t('settings.other.systemLogsHint')}</p>
               </div>
               <div className="flex rounded-lg overflow-hidden border border-gray-300">
                 <button
@@ -591,9 +630,9 @@ export function OptionsModal({
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
-                  title="Користувач онлайн/офлайн"
+                  title={t('settings.other.logOnlineTitle')}
                 >
-                  Онлайн
+                  {t('settings.other.logOnline')}
                 </button>
                 <button
                   onClick={() => handleToggleSystemLog('tabActivity')}
@@ -602,9 +641,9 @@ export function OptionsModal({
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
-                  title="Вкладка активна/у фоні"
+                  title={t('settings.other.logTabTitle')}
                 >
-                  Вкладка
+                  {t('settings.other.logTab')}
                 </button>
                 <button
                   onClick={() => handleToggleSystemLog('chatWidget')}
@@ -613,9 +652,9 @@ export function OptionsModal({
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
-                  title="Віджет відкрито/закрито"
+                  title={t('settings.other.logWidgetTitle')}
                 >
-                  Віджет
+                  {t('settings.other.logWidget')}
                 </button>
                 <button
                   onClick={() => handleToggleSystemLog('pageVisits')}
@@ -624,9 +663,9 @@ export function OptionsModal({
                       ? 'bg-blue-500 text-white'
                       : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                   }`}
-                  title="Перехід на іншу сторінку"
+                  title={t('settings.other.logPagesTitle')}
                 >
-                  Сторінки
+                  {t('settings.other.logPages')}
                 </button>
               </div>
             </div>
@@ -636,17 +675,16 @@ export function OptionsModal({
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Дозволені домени (CORS)
+                  {t('settings.other.cors')}
                 </label>
                 <p className="text-xs text-gray-500 mb-2">
-                  Один домен на рядок. Підтримується * як wildcard.
-                  Пусто = всі домени дозволено.
+                  {t('settings.other.corsHint')}
                 </p>
                 <textarea
                   value={allowedOrigins}
                   onChange={(e) => setAllowedOrigins(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm font-mono"
-                  placeholder="https://example.com&#10;https://*.mydomain.com"
+                  placeholder={t('settings.other.corsPlaceholder')}
                   rows={4}
                 />
               </div>
@@ -654,8 +692,38 @@ export function OptionsModal({
                 onClick={handleSaveOrigins}
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
               >
-                Зберегти домени
+                {t('settings.other.corsSave')}
               </button>
+            </div>
+
+            <hr className="border-gray-200" />
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.other.language')}
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  {t('settings.other.languageHint')}
+                </p>
+                <div className="flex rounded-lg overflow-hidden border border-gray-300">
+                  {LANGUAGES.map((lang, index) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => handleLanguageChange(lang.code)}
+                      className={`flex-1 px-3 py-2 text-xs font-medium transition ${
+                        index < LANGUAGES.length - 1 ? 'border-r border-gray-300' : ''
+                      } ${
+                        language === lang.code
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {lang.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}

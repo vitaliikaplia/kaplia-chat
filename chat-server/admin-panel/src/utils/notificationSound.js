@@ -10,18 +10,18 @@ function getAudioContext() {
   return audioContext;
 }
 
-// Sound definitions with names
+// Sound definitions with translation keys
 export const soundOptions = [
-  { id: 'chime', name: 'Дзвіночок' },
-  { id: 'pop', name: 'Поп' },
-  { id: 'ding', name: 'Дінь' },
-  { id: 'bubble', name: 'Бульбашка' },
-  { id: 'magic', name: 'Магія' },
-  { id: 'xylophone', name: 'Ксилофон' },
-  { id: 'water', name: 'Крапля' },
-  { id: 'bell', name: 'Дзвін' },
-  { id: 'whistle', name: 'Свист' },
-  { id: 'coin', name: 'Монетка' },
+  { id: 'chime', nameKey: 'sounds.chime' },
+  { id: 'pop', nameKey: 'sounds.pop' },
+  { id: 'ding', nameKey: 'sounds.ding' },
+  { id: 'bubble', nameKey: 'sounds.bubble' },
+  { id: 'magic', nameKey: 'sounds.magic' },
+  { id: 'xylophone', nameKey: 'sounds.xylophone' },
+  { id: 'water', nameKey: 'sounds.water' },
+  { id: 'bell', nameKey: 'sounds.bell' },
+  { id: 'whistle', nameKey: 'sounds.whistle' },
+  { id: 'coin', nameKey: 'sounds.coin' },
 ];
 
 // 1. Chime - two-tone pleasant chime

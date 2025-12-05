@@ -17,6 +17,8 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ### Admin Panel (React + Vite)
 - **Modern UI**: Rebuilt with React and Vite for better performance and user experience.
+- **Mobile Responsive**: Full mobile support with burger menu and swipe gestures for sidebar navigation.
+- **Multi-language Support**: Admin panel available in Ukrainian, English, and Russian. Language can be changed in Settings.
 - **User Online/Offline Status**: Real-time indicators showing which users are online (green) or offline (gray/semi-transparent). Online users are sorted to the top of the list.
 - **Tab Activity Indicator**: Eye icon shows if user's browser tab is active (green eye) or in background (gray crossed eye).
 - **Activity Log (System Messages)**: Comprehensive logging of user activity saved to database:
@@ -478,6 +480,7 @@ admin-panel/
 │   ├── components/     # React components (Modal, Sidebar, ChatArea, etc.)
 │   ├── context/        # React Context for state management
 │   ├── hooks/          # Custom hooks (useWebSocket)
+│   ├── i18n/           # Internationalization (uk.json, en.json, ru.json)
 │   ├── utils/          # Utilities (notification sounds)
 │   ├── App.jsx         # Main application component
 │   └── main.jsx        # Entry point

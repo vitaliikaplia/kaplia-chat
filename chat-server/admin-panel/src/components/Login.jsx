@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useTranslation } from '../i18n';
 
 export function Login({ onLogin }) {
+  const { t } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -21,13 +23,13 @@ export function Login({ onLogin }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md mx-4">
         <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">
-          Вхід в адмін-панель
+          {t('login.title')}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Логін
+              {t('login.username')}
             </label>
             <input
               type="text"
@@ -40,14 +42,14 @@ export function Login({ onLogin }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Пароль
+              {t('login.password')}
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
-              placeholder="Введіть пароль"
+              placeholder={t('login.passwordPlaceholder')}
               required
             />
           </div>
@@ -60,7 +62,7 @@ export function Login({ onLogin }) {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-blue-500"
               />
-              <span className="ml-2 text-sm text-gray-600">Запам'ятати мене</span>
+              <span className="ml-2 text-sm text-gray-600">{t('login.rememberMe')}</span>
             </label>
           </div>
 
@@ -69,7 +71,7 @@ export function Login({ onLogin }) {
             disabled={isLoading}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Вхід...' : 'Увійти'}
+            {isLoading ? t('login.loading') : t('login.submit')}
           </button>
         </form>
       </div>

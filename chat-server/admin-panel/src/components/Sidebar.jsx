@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useChat } from '../context/ChatContext';
+import { useTranslation } from '../i18n';
 import { ConfirmModal } from './ConfirmModal';
 
 export function Sidebar({
@@ -9,6 +10,7 @@ export function Sidebar({
   onLogout
 }) {
   const { state } = useChat();
+  const { t } = useTranslation();
   const { users, usersInfo, activeUserId, notifications, onlineUsers, tabActiveUsers } = state;
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -27,7 +29,7 @@ export function Sidebar({
 
   const getUserName = (userId) => {
     const info = usersInfo[userId];
-    return info?.user_name || info?.name || 'Гість';
+    return info?.user_name || info?.name || t('sidebar.guest');
   };
 
   const getUserEmail = (userId) => {
@@ -43,15 +45,36 @@ export function Sidebar({
   return (
     <aside className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-800">Чати</h1>
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <h1 className="text-xl font-bold text-gray-800">{t('sidebar.title')}</h1>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => onOpenSettings('options')}
+            className="p-1.5 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
+            title={t('sidebar.settings')}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          <button
+            onClick={onLogout}
+            className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+            title={t('sidebar.logout')}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* User list */}
       <div className="flex-1 overflow-y-auto">
         {users.length === 0 ? (
           <div className="p-4 text-gray-500 text-center">
-            Немає активних чатів
+            {t('sidebar.noChats')}
           </div>
         ) : (
           sortedUsers.map((userId) => {
@@ -87,7 +110,7 @@ export function Sidebar({
                       {getUserName(userId)}
                       {/* Tab active indicator - eye icon */}
                       {online && (
-                        <span title={isTabActive(userId) ? 'Вкладка активна' : 'Вкладка у фоні'}>
+                        <span title={isTabActive(userId) ? t('sidebar.tabActive') : t('sidebar.tabBackground')}>
                           {isTabActive(userId) ? (
                             <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
@@ -113,7 +136,7 @@ export function Sidebar({
                         e.stopPropagation();
                         navigator.clipboard.writeText(userId);
                       }}
-                      title="Клікніть для копіювання"
+                      title={t('sidebar.copyId')}
                     >
                       {userId}
                     </div>
@@ -126,7 +149,7 @@ export function Sidebar({
                       setDeleteConfirm(userId);
                     }}
                     className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
-                    title="Видалити чат"
+                    title={t('sidebar.deleteChat')}
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -139,33 +162,15 @@ export function Sidebar({
         )}
       </div>
 
-      {/* Settings bar */}
-      <div className="border-t border-gray-200 p-2 flex justify-center gap-4 bg-gray-50">
-        <button
-          onClick={() => onOpenSettings('options')}
-          className="p-2 text-gray-600 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition"
-          title="Налаштування"
-        >
-          <span className="text-lg">⚙️</span>
-        </button>
-        <button
-          onClick={onLogout}
-          className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-          title="Вийти"
-        >
-          <span className="text-lg">🚪</span>
-        </button>
-      </div>
-
       {/* Delete confirmation modal */}
       <ConfirmModal
         isOpen={!!deleteConfirm}
         onClose={() => setDeleteConfirm(null)}
         onConfirm={() => onDeleteUser(deleteConfirm)}
-        title="Видалення чату"
-        message="Видалити цей чат та всю історію повідомлень?"
-        confirmText="Видалити"
-        cancelText="Скасувати"
+        title={t('confirm.deleteChat')}
+        message={t('confirm.deleteChatMessage')}
+        confirmText={t('confirm.delete')}
+        cancelText={t('confirm.cancel')}
         danger
       />
     </aside>

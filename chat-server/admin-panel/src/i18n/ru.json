@@ -1,0 +1,168 @@
+{
+  "sounds": {
+    "chime": "Колокольчик",
+    "pop": "Поп",
+    "ding": "Динь",
+    "bubble": "Пузырёк",
+    "magic": "Магия",
+    "xylophone": "Ксилофон",
+    "water": "Капля",
+    "bell": "Колокол",
+    "whistle": "Свист",
+    "coin": "Монетка"
+  },
+  "login": {
+    "title": "Вход в админ-панель",
+    "username": "Логин",
+    "password": "Пароль",
+    "passwordPlaceholder": "Введите пароль",
+    "rememberMe": "Запомнить меня",
+    "submit": "Войти",
+    "loading": "Вход...",
+    "error": "Неверный логин или пароль"
+  },
+  "sidebar": {
+    "title": "Чаты",
+    "noChats": "Нет активных чатов",
+    "guest": "Гость",
+    "tabActive": "Вкладка активна",
+    "tabBackground": "Вкладка в фоне",
+    "copyId": "Нажмите для копирования",
+    "deleteChat": "Удалить чат",
+    "settings": "Настройки",
+    "logout": "Выйти"
+  },
+  "chat": {
+    "guest": "Гость",
+    "selectChat": "Выберите чат для начала общения",
+    "noMessages": "Нет сообщений",
+    "clearLog": "Очистить лог",
+    "clearLogTitle": "Удалить системные сообщения",
+    "typing": "Печатает:",
+    "inputPlaceholder": "Введите сообщение...",
+    "loading": "Загрузка...",
+    "copyId": "Нажмите для копирования"
+  },
+  "systemEvents": {
+    "user_connected": "Пользователь онлайн",
+    "user_left": "Пользователь офлайн",
+    "tab_active": "Вкладка активна",
+    "tab_inactive": "Вкладка в фоне",
+    "chat_opened": "Чат открыт",
+    "chat_closed": "Чат закрыт",
+    "page_visit": "Перешёл на страницу"
+  },
+  "confirm": {
+    "title": "Подтверждение",
+    "yes": "Да",
+    "cancel": "Отмена",
+    "deleteChat": "Удаление чата",
+    "deleteChatMessage": "Удалить этот чат и всю историю сообщений?",
+    "delete": "Удалить",
+    "logoutTitle": "Выход",
+    "logoutMessage": "Выйти из админ-панели?"
+  },
+  "settings": {
+    "title": "Настройки",
+    "tabs": {
+      "password": "Пароль",
+      "token": "API токен",
+      "webhook": "Webhook",
+      "time": "Время",
+      "sound": "Звук",
+      "messages": "Сообщения",
+      "spam": "Спам",
+      "other": "Другое"
+    },
+    "password": {
+      "new": "Новый пароль",
+      "newPlaceholder": "Введите новый пароль",
+      "confirm": "Подтвердите пароль",
+      "confirmPlaceholder": "Повторите пароль",
+      "save": "Сохранить пароль",
+      "errorEmpty": "Введите новый пароль",
+      "errorMismatch": "Пароли не совпадают",
+      "errorLength": "Пароль должен быть не менее 6 символов"
+    },
+    "token": {
+      "label": "Токен для API запросов",
+      "placeholder": "API токен",
+      "copy": "Копировать",
+      "generate": "Сгенерировать новый токен",
+      "save": "Сохранить",
+      "copied": "Токен скопирован"
+    },
+    "webhook": {
+      "enabled": "Webhook включён",
+      "url": "URL вебхука",
+      "urlPlaceholder": "https://example.com/webhook",
+      "urlHint": "Сюда будут отправляться POST-запросы при новых сообщениях",
+      "save": "Сохранить"
+    },
+    "time": {
+      "timezone": "Часовой пояс",
+      "dateFormat": "Формат даты",
+      "dateFormatPlaceholder": "d.m.Y",
+      "dateFormatHint": "Форматы: d (день), m (месяц), Y (год)",
+      "timeFormat": "Формат времени",
+      "timeFormatPlaceholder": "H:i",
+      "timeFormatHint": "Форматы: H (часы 24), g (часы 12), i (минуты), s (секунды), A (AM/PM)",
+      "save": "Сохранить"
+    },
+    "sound": {
+      "enabled": "Звуковые уведомления",
+      "enabledHint": "Воспроизводить звук при новых сообщениях",
+      "type": "Тип звука уведомления",
+      "test": "Тест"
+    },
+    "messages": {
+      "adminLimit": "Сообщений в админ чате",
+      "adminLimitHint": "Сколько последних сообщений загружать в админ панели",
+      "widgetLimit": "Сообщений в виджете",
+      "widgetLimitHint": "Сколько последних сообщений загружать в виджете клиента",
+      "save": "Сохранить"
+    },
+    "spam": {
+      "maxPerMinute": "Макс. сообщений в минуту",
+      "maxPerMinuteHint": "Сколько сообщений может отправить один клиент за минуту",
+      "maxLength": "Макс. символов в сообщении",
+      "maxLengthHint": "Максимальная длина одного сообщения",
+      "save": "Сохранить"
+    },
+    "other": {
+      "realtimeTyping": "Просмотр набора в реальном времени",
+      "realtimeTypingHint": "Видеть что печатает клиент до отправки",
+      "save": "Сохранить",
+      "systemLogs": "Системные логи",
+      "systemLogsHint": "Выберите какие события записывать в историю чата",
+      "logOnline": "Онлайн",
+      "logOnlineTitle": "Пользователь онлайн/офлайн",
+      "logTab": "Вкладка",
+      "logTabTitle": "Вкладка активна/в фоне",
+      "logWidget": "Виджет",
+      "logWidgetTitle": "Виджет открыт/закрыт",
+      "logPages": "Страницы",
+      "logPagesTitle": "Переход на другую страницу",
+      "cors": "Разрешённые домены (CORS)",
+      "corsHint": "Один домен на строку. Поддерживается * как wildcard. Пусто = все домены разрешены.",
+      "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
+      "corsSave": "Сохранить домены",
+      "language": "Язык интерфейса",
+      "languageHint": "Выберите язык админ-панели"
+    }
+  },
+  "toast": {
+    "loginSuccess": "Успешная авторизация!",
+    "logoutSuccess": "Вы вышли из системы",
+    "passwordSaved": "Пароль сохранён!",
+    "tokenSaved": "API токен сохранён!",
+    "webhookSaved": "Webhook сохранён!",
+    "timeSaved": "Настройки времени сохранены!",
+    "realtimeTypingOn": "Просмотр набора: ВКЛЮЧЕНО",
+    "realtimeTypingOff": "Просмотр набора: ВЫКЛЮЧЕНО",
+    "corsSaved": "Разрешённые домены сохранены!",
+    "rateLimitSaved": "Лимиты сообщений сохранены!",
+    "messageLimitsSaved": "Лимиты сохранены!",
+    "languageSaved": "Язык изменён!"
+  }
+}

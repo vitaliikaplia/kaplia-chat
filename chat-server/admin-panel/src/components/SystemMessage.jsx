@@ -1,58 +1,8 @@
 import { getTimeString } from '../utils/dateUtils';
-
-const EVENT_CONFIG = {
-  user_connected: {
-    icon: '🟢',
-    text: 'Користувач онлайн',
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-200',
-    textColor: 'text-green-700',
-  },
-  user_left: {
-    icon: '🔴',
-    text: 'Користувач офлайн',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
-    textColor: 'text-red-700',
-  },
-  tab_active: {
-    icon: '👁',
-    text: 'Вкладка активна',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    textColor: 'text-blue-700',
-  },
-  tab_inactive: {
-    icon: '👁‍🗨',
-    text: 'Вкладка у фоні',
-    bgColor: 'bg-gray-50',
-    borderColor: 'border-gray-200',
-    textColor: 'text-gray-600',
-  },
-  chat_opened: {
-    icon: '💬',
-    text: 'Чат відкрито',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200',
-    textColor: 'text-purple-700',
-  },
-  chat_closed: {
-    icon: '✖️',
-    text: 'Чат закрито',
-    bgColor: 'bg-orange-50',
-    borderColor: 'border-orange-200',
-    textColor: 'text-orange-700',
-  },
-  page_visit: {
-    icon: '🔗',
-    text: 'Перейшов на сторінку',
-    bgColor: 'bg-cyan-50',
-    borderColor: 'border-cyan-200',
-    textColor: 'text-cyan-700',
-  },
-};
+import { useTranslation } from '../i18n';
 
 export function SystemMessage({ message, config }) {
+  const { t } = useTranslation();
   const messageText = message.text;
 
   // Check if it's a page_visit with URL
@@ -60,14 +10,67 @@ export function SystemMessage({ message, config }) {
   const eventType = isPageVisit ? 'page_visit' : messageText;
   const pageUrl = isPageVisit ? messageText.replace('page_visit:', '') : null;
 
+  const EVENT_CONFIG = {
+    user_connected: {
+      icon: '🟢',
+      textKey: 'systemEvents.user_connected',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200',
+      textColor: 'text-green-700',
+    },
+    user_left: {
+      icon: '🔴',
+      textKey: 'systemEvents.user_left',
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-200',
+      textColor: 'text-red-700',
+    },
+    tab_active: {
+      icon: '👁',
+      textKey: 'systemEvents.tab_active',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200',
+      textColor: 'text-blue-700',
+    },
+    tab_inactive: {
+      icon: '👁‍🗨',
+      textKey: 'systemEvents.tab_inactive',
+      bgColor: 'bg-gray-50',
+      borderColor: 'border-gray-200',
+      textColor: 'text-gray-600',
+    },
+    chat_opened: {
+      icon: '💬',
+      textKey: 'systemEvents.chat_opened',
+      bgColor: 'bg-purple-50',
+      borderColor: 'border-purple-200',
+      textColor: 'text-purple-700',
+    },
+    chat_closed: {
+      icon: '✖️',
+      textKey: 'systemEvents.chat_closed',
+      bgColor: 'bg-orange-50',
+      borderColor: 'border-orange-200',
+      textColor: 'text-orange-700',
+    },
+    page_visit: {
+      icon: '🔗',
+      textKey: 'systemEvents.page_visit',
+      bgColor: 'bg-cyan-50',
+      borderColor: 'border-cyan-200',
+      textColor: 'text-cyan-700',
+    },
+  };
+
   const eventConfig = EVENT_CONFIG[eventType] || {
     icon: 'ℹ️',
-    text: messageText,
+    textKey: null,
     bgColor: 'bg-gray-50',
     borderColor: 'border-gray-200',
     textColor: 'text-gray-600',
   };
 
+  const displayText = eventConfig.textKey ? t(eventConfig.textKey) : messageText;
   const timeStr = getTimeString(message.timestamp, config.timeFormat, config.timezone);
 
   // Special layout for page_visit with URL
@@ -78,7 +81,7 @@ export function SystemMessage({ message, config }) {
           <div className="flex items-center gap-2">
             <span className="text-sm">{eventConfig.icon}</span>
             <span className={`text-xs font-medium ${eventConfig.textColor}`}>
-              {eventConfig.text}
+              {displayText}
             </span>
             <span className="text-xs text-gray-400">
               {timeStr}
@@ -103,7 +106,7 @@ export function SystemMessage({ message, config }) {
       <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border ${eventConfig.bgColor} ${eventConfig.borderColor}`}>
         <span className="text-sm">{eventConfig.icon}</span>
         <span className={`text-xs font-medium ${eventConfig.textColor}`}>
-          {eventConfig.text}
+          {displayText}
         </span>
         <span className="text-xs text-gray-400">
           {timeStr}

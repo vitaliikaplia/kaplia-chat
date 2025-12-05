@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ChatProvider, useChat } from './context/ChatContext';
 import { useWebSocket } from './hooks/useWebSocket';
+import { I18nProvider, useTranslation } from './i18n';
 import { Login } from './components/Login';
 import { Sidebar } from './components/Sidebar';
 import { ChatArea } from './components/ChatArea';
@@ -10,8 +11,12 @@ import { Toast } from './components/Toast';
 
 function AppContent() {
   const { state, setActiveUser, clearNotification, setConfig } = useChat();
+  const { t, changeLanguage } = useTranslation();
   const [activeModal, setActiveModal] = useState(null);
   const [toast, setToast] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(() => {
     const saved = localStorage.getItem('kaplia_sound_enabled');
     return saved !== null ? saved === 'true' : true;
@@ -19,6 +24,13 @@ function AppContent() {
   const [soundType, setSoundType] = useState(() => {
     return localStorage.getItem('kaplia_sound_type') || 'chime';
   });
+
+  // Sync language with config from server
+  useEffect(() => {
+    if (state.config.language) {
+      changeLanguage(state.config.language);
+    }
+  }, [state.config.language, changeLanguage]);
 
   const showToast = (message, type = 'error') => {
     setToast({ message, type });
@@ -43,6 +55,7 @@ function AppContent() {
     updateTimeSettings,
     updateRealtimeTyping,
     updateSystemLogs,
+    updateLanguage,
     updateAllowedOrigins,
     updateRateLimit,
     updateMessageLimits,
@@ -61,7 +74,7 @@ function AppContent() {
   const handleLogin = async (password, rememberMe) => {
     connect(password, () => {
       // Called on auth error (connection closed without auth_success)
-      showToast('Невірний логін або пароль', 'error');
+      showToast(t('login.error'), 'error');
     }, rememberMe);
   };
 
@@ -69,6 +82,33 @@ function AppContent() {
     setActiveUser(userId);
     clearNotification(userId);
     getHistory(userId);
+    // Close sidebar on mobile after selecting user
+    setSidebarOpen(false);
+  };
+
+  // Swipe handling
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isRightSwipe && !sidebarOpen) {
+      setSidebarOpen(true);
+    } else if (isLeftSwipe && sidebarOpen) {
+      setSidebarOpen(false);
+    }
   };
 
   const handleDeleteUser = (userId) => {
@@ -96,7 +136,7 @@ function AppContent() {
   };
 
   const confirmLogout = () => {
-    showToast('Ви вийшли з системи', 'success');
+    showToast(t('toast.logoutSuccess'), 'success');
     disconnect();
   };
 
@@ -128,6 +168,12 @@ function AppContent() {
         [setting]: enabled
       }
     });
+  };
+
+  const handleSaveLanguage = (language) => {
+    updateLanguage(language);
+    setConfig({ language });
+    changeLanguage(language);
   };
 
   const handleSaveAllowedOrigins = (origins) => {
@@ -179,19 +225,46 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <Sidebar
-        onSelectUser={handleSelectUser}
-        onDeleteUser={handleDeleteUser}
-        onOpenSettings={handleOpenSettings}
-        onLogout={handleLogout}
-      />
-      <ChatArea
-        onSendMessage={handleSendMessage}
-        onDeleteMessage={handleDeleteMessage}
-        onLoadMore={handleLoadMore}
-        onDeleteSystemMessages={handleDeleteSystemMessages}
-      />
+    <div
+      className="flex h-screen bg-gray-100 relative"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Mobile overlay when sidebar is open */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-20 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-30
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
+        <Sidebar
+          onSelectUser={handleSelectUser}
+          onDeleteUser={handleDeleteUser}
+          onOpenSettings={handleOpenSettings}
+          onLogout={handleLogout}
+        />
+      </div>
+
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <ChatArea
+          onSendMessage={handleSendMessage}
+          onDeleteMessage={handleDeleteMessage}
+          onLoadMore={handleLoadMore}
+          onDeleteSystemMessages={handleDeleteSystemMessages}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          sidebarOpen={sidebarOpen}
+        />
+      </div>
 
       {/* Modals */}
       <OptionsModal
@@ -204,6 +277,7 @@ function AppContent() {
         onSaveTimeSettings={handleSaveTimeSettings}
         onSaveRealtimeTyping={handleSaveRealtimeTyping}
         onSaveSystemLogs={handleSaveSystemLogs}
+        onSaveLanguage={handleSaveLanguage}
         onSaveAllowedOrigins={handleSaveAllowedOrigins}
         onSaveRateLimit={handleSaveRateLimit}
         onSaveMessageLimits={handleSaveMessageLimits}
@@ -211,16 +285,16 @@ function AppContent() {
         onSoundEnabledChange={handleSoundEnabledChange}
         soundType={soundType}
         onSoundTypeChange={handleSoundTypeChange}
-        onCopyToken={() => showToast('Токен скопійовано', 'success')}
+        onCopyToken={() => showToast(t('settings.token.copied'), 'success')}
       />
       <ConfirmModal
         isOpen={activeModal === 'logout'}
         onClose={handleCloseModal}
         onConfirm={confirmLogout}
-        title="Вихід"
-        message="Вийти з адмін-панелі?"
-        confirmText="Вийти"
-        cancelText="Скасувати"
+        title={t('confirm.logoutTitle')}
+        message={t('confirm.logoutMessage')}
+        confirmText={t('sidebar.logout')}
+        cancelText={t('confirm.cancel')}
       />
 
       {/* Toast notifications */}
@@ -235,10 +309,19 @@ function AppContent() {
   );
 }
 
+function AppWithI18n() {
+  const { state } = useChat();
+  return (
+    <I18nProvider initialLanguage={state.config.language || 'uk'}>
+      <AppContent />
+    </I18nProvider>
+  );
+}
+
 function App() {
   return (
     <ChatProvider>
-      <AppContent />
+      <AppWithI18n />
     </ChatProvider>
   );
 }

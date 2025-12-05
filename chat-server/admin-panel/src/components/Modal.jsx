@@ -1,8 +1,8 @@
 const sizeClasses = {
   sm: 'max-w-sm',
   md: 'max-w-md',
-  lg: 'max-w-xl',
-  xl: 'max-w-2xl',
+  lg: 'max-w-lg',
+  xl: 'max-w-xl',
 };
 
 export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
@@ -16,10 +16,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 pt-12 overflow-y-auto"
       onClick={handleBackdropClick}
     >
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} mx-4 max-h-[90vh] flex flex-col`}>
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${sizeClasses[size]} mx-4 mb-12 flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
           <h3 className="text-lg font-semibold text-gray-800">{title}</h3>

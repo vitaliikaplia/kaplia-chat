@@ -53,6 +53,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           allowedOrigins: data.allowedOrigins || '',
           maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
           maxMessageLength: data.maxMessageLength || 1000,
+          language: data.language || 'uk',
         });
         if (onSystemMessageRef.current) {
           onSystemMessageRef.current('Успішна авторизація!');
@@ -339,6 +340,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             maxMessageLength: data.maxMessageLength || 1000,
             adminMessagesLimit: data.adminMessagesLimit || 20,
             widgetMessagesLimit: data.widgetMessagesLimit || 20,
+            language: data.language || 'uk',
           });
           return; // Don't pass to handleMessage since we handled it here
         }
@@ -436,6 +438,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_system_logs', setting, enabled });
   }, [send]);
 
+  const updateLanguage = useCallback((language) => {
+    send({ type: 'update_language', language });
+  }, [send]);
+
   const updateAllowedOrigins = useCallback((origins) => {
     send({ type: 'update_allowed_origins', origins });
   }, [send]);
@@ -498,6 +504,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateTimeSettings,
     updateRealtimeTyping,
     updateSystemLogs,
+    updateLanguage,
     updateAllowedOrigins,
     updateRateLimit,
     updateMessageLimits,

@@ -23,3 +23,8 @@ html, body, #root {
   margin: 0;
   padding: 0;
 }
+
+/* Hide scrollbar for tabs */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
