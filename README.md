@@ -2,6 +2,16 @@
 
 A complete, self-hosted live chat solution built with Node.js and WebSockets. It includes a server, a client-side chat widget for your website, and an admin panel for support agents.
 
+## Screenshots
+
+### Chat Widget (Client)
+![Chat Widget](chat-server/admin-panel/public/screenshots/screenshot-1.png)
+*Embeddable chat widget for website visitors*
+
+### Admin Panel
+![Admin Panel](chat-server/admin-panel/public/screenshots/screenshot-2.png)
+*Support agent dashboard with real-time chat management*
+
 ## Project Overview
 
 This chat application is designed to be a lightweight, performant, and easily deployable live support tool for any website. It provides real-time, two-way communication between your website visitors and your support agents through a clean, modern interface. With a focus on simplicity and flexibility, it can be self-hosted on your own server, giving you full control over your data and infrastructure.
