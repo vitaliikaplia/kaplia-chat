@@ -19,6 +19,12 @@ const initialState = {
     dateFormat: 'd.m.Y',
     timeFormat: 'H:i',
     realtimeTyping: false,
+    systemLogs: {
+      onlineStatus: true,
+      tabActivity: true,
+      chatWidget: true,
+      pageVisits: true
+    },
     allowedOrigins: '',
     maxMessagesPerMinute: 20,
     maxMessageLength: 1000,

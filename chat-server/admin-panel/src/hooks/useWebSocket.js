@@ -49,6 +49,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           dateFormat: data.dateFormat || 'd.m.Y',
           timeFormat: data.timeFormat || 'H:i',
           realtimeTyping: data.realtimeTyping || false,
+          systemLogs: data.systemLogs || { onlineStatus: true, tabActivity: true, chatWidget: true, pageVisits: true },
           allowedOrigins: data.allowedOrigins || '',
           maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
           maxMessageLength: data.maxMessageLength || 1000,
@@ -332,6 +333,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             dateFormat: data.dateFormat || 'd.m.Y',
             timeFormat: data.timeFormat || 'H:i',
             realtimeTyping: data.realtimeTyping || false,
+            systemLogs: data.systemLogs || { onlineStatus: true, tabActivity: true, chatWidget: true, pageVisits: true },
             allowedOrigins: data.allowedOrigins || '',
             maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
             maxMessageLength: data.maxMessageLength || 1000,
@@ -430,6 +432,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_realtime_typing', enabled });
   }, [send]);
 
+  const updateSystemLogs = useCallback((setting, enabled) => {
+    send({ type: 'update_system_logs', setting, enabled });
+  }, [send]);
+
   const updateAllowedOrigins = useCallback((origins) => {
     send({ type: 'update_allowed_origins', origins });
   }, [send]);
@@ -491,6 +497,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateWebhook,
     updateTimeSettings,
     updateRealtimeTyping,
+    updateSystemLogs,
     updateAllowedOrigins,
     updateRateLimit,
     updateMessageLimits,

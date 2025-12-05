@@ -25,6 +25,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
   - 👁 Tab became active / 👁‍🗨 Tab went to background
   - 💬 Chat opened / ✖️ Chat closed
   - 🔗 Page navigation with URL tracking
+- **Granular Log Control**: Toggle each log type independently via button group (Online status, Tab activity, Chat widget, Page visits). Changes apply instantly without save button.
 - **Current Page URL**: Shows the current page URL the user is viewing in the chat header.
 - **Smart Navigation Detection**: Distinguishes between page navigation and actual tab switches - only logs relevant events.
 - **Message Management**: Ability to delete specific messages instantly.

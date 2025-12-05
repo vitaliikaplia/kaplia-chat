@@ -42,6 +42,7 @@ function AppContent() {
     updateWebhook,
     updateTimeSettings,
     updateRealtimeTyping,
+    updateSystemLogs,
     updateAllowedOrigins,
     updateRateLimit,
     updateMessageLimits,
@@ -119,6 +120,16 @@ function AppContent() {
     setConfig({ realtimeTyping: enabled });
   };
 
+  const handleSaveSystemLogs = (setting, enabled) => {
+    updateSystemLogs(setting, enabled);
+    setConfig({
+      systemLogs: {
+        ...state.config.systemLogs,
+        [setting]: enabled
+      }
+    });
+  };
+
   const handleSaveAllowedOrigins = (origins) => {
     updateAllowedOrigins(origins);
     setConfig({ allowedOrigins: origins });
@@ -192,6 +203,7 @@ function AppContent() {
         onSaveWebhook={handleSaveWebhook}
         onSaveTimeSettings={handleSaveTimeSettings}
         onSaveRealtimeTyping={handleSaveRealtimeTyping}
+        onSaveSystemLogs={handleSaveSystemLogs}
         onSaveAllowedOrigins={handleSaveAllowedOrigins}
         onSaveRateLimit={handleSaveRateLimit}
         onSaveMessageLimits={handleSaveMessageLimits}

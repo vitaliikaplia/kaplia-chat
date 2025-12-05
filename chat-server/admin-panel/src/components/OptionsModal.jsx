@@ -63,6 +63,7 @@ export function OptionsModal({
   onSaveWebhook,
   onSaveTimeSettings,
   onSaveRealtimeTyping,
+  onSaveSystemLogs,
   onSaveAllowedOrigins,
   onSaveRateLimit,
   onSaveMessageLimits,
@@ -170,6 +171,11 @@ export function OptionsModal({
 
   const handleSaveTyping = () => {
     onSaveRealtimeTyping(realtimeTyping);
+  };
+
+  const handleToggleSystemLog = (setting) => {
+    const currentValue = config.systemLogs?.[setting] ?? true;
+    onSaveSystemLogs(setting, !currentValue);
   };
 
   const handleSaveOrigins = () => {
@@ -568,6 +574,61 @@ export function OptionsModal({
               >
                 Зберегти
               </button>
+            </div>
+
+            <hr className="border-gray-200" />
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-sm font-medium text-gray-700">Системні логи</span>
+                <p className="text-xs text-gray-500 mb-3">Оберіть які події записувати в історію чату</p>
+              </div>
+              <div className="flex rounded-lg overflow-hidden border border-gray-300">
+                <button
+                  onClick={() => handleToggleSystemLog('onlineStatus')}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition border-r border-gray-300 ${
+                    config.systemLogs?.onlineStatus
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Користувач онлайн/офлайн"
+                >
+                  Онлайн
+                </button>
+                <button
+                  onClick={() => handleToggleSystemLog('tabActivity')}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition border-r border-gray-300 ${
+                    config.systemLogs?.tabActivity
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Вкладка активна/у фоні"
+                >
+                  Вкладка
+                </button>
+                <button
+                  onClick={() => handleToggleSystemLog('chatWidget')}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition border-r border-gray-300 ${
+                    config.systemLogs?.chatWidget
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Віджет відкрито/закрито"
+                >
+                  Віджет
+                </button>
+                <button
+                  onClick={() => handleToggleSystemLog('pageVisits')}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition ${
+                    config.systemLogs?.pageVisits
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                  title="Перехід на іншу сторінку"
+                >
+                  Сторінки
+                </button>
+              </div>
             </div>
 
             <hr className="border-gray-200" />

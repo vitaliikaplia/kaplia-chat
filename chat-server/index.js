@@ -16,6 +16,12 @@ const DEFAULT_API_TOKEN = 'MOJrnzS8pQyizRynxuuEJ98y8tPeJMg6';
 let webhookConfig = { url: '', enabled: 0 };
 let timeConfig = { timezone: '0', dateFormat: 'd.m.Y', timeFormat: 'H:i' };
 let realtimeTypingEnabled = 0;
+let systemLogsConfig = {
+    onlineStatus: 1,    // user_connected, user_left
+    tabActivity: 1,     // tab_active, tab_inactive
+    chatWidget: 1,      // chat_opened, chat_closed
+    pageVisits: 1       // page_visit
+};
 let allowedOrigins = [];
 let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
 let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
@@ -35,6 +41,10 @@ db.serialize(() => {
                                                   date_format TEXT DEFAULT 'd.m.Y',
                                                   time_format TEXT DEFAULT 'H:i',
                                                   realtime_typing INTEGER DEFAULT 0,
+                                                  log_online_status INTEGER DEFAULT 1,
+                                                  log_tab_activity INTEGER DEFAULT 1,
+                                                  log_chat_widget INTEGER DEFAULT 1,
+                                                  log_page_visits INTEGER DEFAULT 1,
                                                   allowed_origins TEXT DEFAULT ''
             )`);
 
@@ -65,6 +75,10 @@ db.serialize(() => {
             timeConfig.dateFormat = row.date_format || 'd.m.Y';
             timeConfig.timeFormat = row.time_format || 'H:i';
             realtimeTypingEnabled = row.realtime_typing || 0;
+            systemLogsConfig.onlineStatus = row.log_online_status !== undefined ? row.log_online_status : 1;
+            systemLogsConfig.tabActivity = row.log_tab_activity !== undefined ? row.log_tab_activity : 1;
+            systemLogsConfig.chatWidget = row.log_chat_widget !== undefined ? row.log_chat_widget : 1;
+            systemLogsConfig.pageVisits = row.log_page_visits !== undefined ? row.log_page_visits : 1;
             allowedOrigins = (row.allowed_origins || '').split('\n').filter(o => o.trim());
             rateLimitConfig.maxMessagesPerMinute = row.max_messages_per_minute || 20;
             rateLimitConfig.maxMessageLength = row.max_message_length || 1000;
@@ -82,6 +96,10 @@ db.serialize(() => {
                 if (!colNames.includes('date_format')) db.run("ALTER TABLE admins ADD COLUMN date_format TEXT DEFAULT 'd.m.Y'");
                 if (!colNames.includes('time_format')) db.run("ALTER TABLE admins ADD COLUMN time_format TEXT DEFAULT 'H:i'");
                 if (!colNames.includes('realtime_typing')) db.run("ALTER TABLE admins ADD COLUMN realtime_typing INTEGER DEFAULT 0");
+                if (!colNames.includes('log_online_status')) db.run("ALTER TABLE admins ADD COLUMN log_online_status INTEGER DEFAULT 1");
+                if (!colNames.includes('log_tab_activity')) db.run("ALTER TABLE admins ADD COLUMN log_tab_activity INTEGER DEFAULT 1");
+                if (!colNames.includes('log_chat_widget')) db.run("ALTER TABLE admins ADD COLUMN log_chat_widget INTEGER DEFAULT 1");
+                if (!colNames.includes('log_page_visits')) db.run("ALTER TABLE admins ADD COLUMN log_page_visits INTEGER DEFAULT 1");
                 if (!colNames.includes('allowed_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_origins TEXT DEFAULT ''");
                 if (!colNames.includes('max_messages_per_minute')) db.run("ALTER TABLE admins ADD COLUMN max_messages_per_minute INTEGER DEFAULT 20");
                 if (!colNames.includes('max_message_length')) db.run("ALTER TABLE admins ADD COLUMN max_message_length INTEGER DEFAULT 1000");
@@ -187,6 +205,23 @@ function shouldDeduplicateEvent(userId, eventType) {
 }
 
 function saveSystemEvent(sessionId, eventType, callback) {
+    // Check if this event type should be logged based on settings
+    const eventTypeToSetting = {
+        'user_connected': 'onlineStatus',
+        'user_left': 'onlineStatus',
+        'tab_active': 'tabActivity',
+        'tab_inactive': 'tabActivity',
+        'chat_opened': 'chatWidget',
+        'chat_closed': 'chatWidget'
+    };
+
+    // page_visit events start with "page_visit:"
+    const setting = eventType.startsWith('page_visit:') ? 'pageVisits' : eventTypeToSetting[eventType];
+
+    if (setting && !systemLogsConfig[setting]) {
+        return; // Skip saving if this log type is disabled
+    }
+
     const timestamp = new Date().toISOString();
     // sender = 'system', text contains the event type (user_connected, user_left, tab_active, tab_inactive)
     db.run("INSERT INTO messages (session_id, sender, text, timestamp) VALUES (?, ?, ?, ?)",
@@ -329,6 +364,7 @@ wss.on('connection', (ws, req) => {
                     dateFormat: timeConfig.dateFormat,
                     timeFormat: timeConfig.timeFormat,
                     realtimeTyping: realtimeTypingEnabled,
+                    systemLogs: systemLogsConfig,
                     allowedOrigins: row.allowed_origins || '',
                     maxMessagesPerMinute: rateLimitConfig.maxMessagesPerMinute,
                     maxMessageLength: rateLimitConfig.maxMessageLength,
@@ -392,6 +428,23 @@ wss.on('connection', (ws, req) => {
                                 realtimeTypingEnabled = enabled;
                                 ws.send(JSON.stringify({ type: 'system', text: `Перегляд набору: ${enabled ? 'УВІМКНЕНО' : 'ВИМКНЕНО'}` }));
                             });
+                        }
+                        if (data.type === 'update_system_logs') {
+                            const { setting, enabled } = data;
+                            const value = enabled ? 1 : 0;
+                            const columnMap = {
+                                onlineStatus: 'log_online_status',
+                                tabActivity: 'log_tab_activity',
+                                chatWidget: 'log_chat_widget',
+                                pageVisits: 'log_page_visits'
+                            };
+                            const column = columnMap[setting];
+                            if (column) {
+                                db.run(`UPDATE admins SET ${column} = ? WHERE username = ?`, [value, 'admin'], () => {
+                                    systemLogsConfig[setting] = value;
+                                    ws.send(JSON.stringify({ type: 'system_logs_updated', setting, enabled: value }));
+                                });
+                            }
                         }
                         if (data.type === 'update_allowed_origins') {
                             db.run("UPDATE admins SET allowed_origins = ? WHERE username = ?", [data.origins, 'admin'], () => {
@@ -682,22 +735,27 @@ wss.on('connection', (ws, req) => {
                 clientInfo.set(userId, currentMeta);
                 updateSessionInfo(userId, currentMeta);
 
-                // Save as system event with URL in text
-                const timestamp = new Date().toISOString();
-                db.run("INSERT INTO messages (session_id, sender, text, timestamp) VALUES (?, ?, ?, ?)",
-                    [userId, 'system', `page_visit:${url}`, timestamp],
-                    function(err) {
-                        if (!err && adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                            adminSocket.send(JSON.stringify({
-                                type: 'page_visit',
-                                userId: userId,
-                                url: url,
-                                msgId: this.lastID,
-                                timestamp
-                            }));
-                        }
+                // Always notify admin about URL change (for sidebar display)
+                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                    adminSocket.send(JSON.stringify({
+                        type: 'user_info_update',
+                        id: userId,
+                        info: { current_url: url }
+                    }));
+                }
+
+                // Save as system event with URL in text (respects systemLogs settings)
+                saveSystemEvent(userId, `page_visit:${url}`, (msgId, timestamp) => {
+                    if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                        adminSocket.send(JSON.stringify({
+                            type: 'page_visit',
+                            userId: userId,
+                            url: url,
+                            msgId,
+                            timestamp
+                        }));
                     }
-                );
+                });
                 return;
             }
 
