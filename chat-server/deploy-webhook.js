@@ -1,6 +1,7 @@
 const http = require('http');
 const crypto = require('crypto');
 const { exec } = require('child_process');
+// Auto-deploy test
 const fs = require('fs');
 const path = require('path');
 
