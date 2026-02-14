@@ -385,7 +385,10 @@ The server sends a JSON object containing the message text and all available ses
     {
       "session_id": "guest_k7x2m9",
       "metadata": {
-        "user_session": "Germany, Bavaria, Munich (85.214.132.45), Windows, Chrome",
+        "user_session": "Germany, Bavaria, Munich, Windows, Chrome",
+        "user_name": "Смілива Коала",
+        "user_id": "guest_k7x2m9",
+        "user_email": "смілива.коала@anonymous",
         "geo": "Germany, Bavaria, Munich (85.214.132.45)",
         "platform": "Windows",
         "browser": "Chrome",
