@@ -108,9 +108,11 @@ function getSessionInfo(req) {
 
 function isAnonymousOrigin(origin) {
     if (allowedAnonymousOrigins.length === 0) return false;
+    const normalizedOrigin = origin.replace(/\/+$/, '');
     return allowedAnonymousOrigins.some(allowed => {
-        const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-        return new RegExp(`^${pattern}$`, 'i').test(origin);
+        const normalizedAllowed = allowed.trim().replace(/\/+$/, '');
+        const pattern = normalizedAllowed.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`, 'i').test(normalizedOrigin);
     });
 }
 
@@ -236,10 +238,12 @@ function checkApiToken(token, callback) {
 
 function checkOriginAllowed(origin) {
     if (allowedOrigins.length === 0 && allowedAnonymousOrigins.length === 0) return true;
+    const normalizedOrigin = origin.replace(/\/+$/, '');
     const allOrigins = [...allowedOrigins, ...allowedAnonymousOrigins];
     return allOrigins.some(allowed => {
-        const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-        return new RegExp(`^${pattern}$`, 'i').test(origin);
+        const normalizedAllowed = allowed.trim().replace(/\/+$/, '');
+        const pattern = normalizedAllowed.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`, 'i').test(normalizedOrigin);
     });
 }
 
