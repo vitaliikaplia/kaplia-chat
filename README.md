@@ -191,7 +191,7 @@ Configure Nginx to handle SSL and forward traffic, including WebSocket connectio
 2.  **Initialize the project and install dependencies**:
     ```bash
     npm init -y
-    npm install ws express better-sqlite3 bcryptjs maxmind
+    npm install ws express sqlite3 bcryptjs maxmind
     ```
 
 3.  **Add GeoIP databases** (optional, for anonymous user geolocation):

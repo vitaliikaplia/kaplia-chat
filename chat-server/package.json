@@ -1,5 +1,12 @@
 {
+  "name": "kaplia-chat-server",
+  "version": "1.0.0",
+  "private": true,
   "dependencies": {
-    "maxmind": "^5.0.5"
+    "bcryptjs": "^2.4.3",
+    "express": "^4.21.2",
+    "maxmind": "^5.0.5",
+    "sqlite3": "^5.1.7",
+    "ws": "^8.18.1"
   }
 }
