@@ -56,6 +56,7 @@ export function OptionsModal({
   onSaveSystemLogs,
   onSaveLanguage,
   onSaveAllowedOrigins,
+  onSaveAnonymousOrigins,
   onSaveRateLimit,
   onSaveMessageLimits,
   soundEnabled,
@@ -113,6 +114,7 @@ export function OptionsModal({
   // Other
   const [realtimeTyping, setRealtimeTyping] = useState(false);
   const [allowedOrigins, setAllowedOrigins] = useState('');
+  const [allowedAnonymousOrigins, setAllowedAnonymousOrigins] = useState('');
 
   // Spam
   const [maxMessagesPerMinute, setMaxMessagesPerMinute] = useState(20);
@@ -132,6 +134,7 @@ export function OptionsModal({
       setTimeFormat(config.timeFormat || 'H:i');
       setRealtimeTyping(config.realtimeTyping || false);
       setAllowedOrigins(config.allowedOrigins || '');
+      setAllowedAnonymousOrigins(config.allowedAnonymousOrigins || '');
       setMaxMessagesPerMinute(config.maxMessagesPerMinute || 20);
       setMaxMessageLength(config.maxMessageLength || 1000);
       setAdminMessagesLimit(config.adminMessagesLimit || 20);
@@ -202,6 +205,10 @@ export function OptionsModal({
 
   const handleSaveOrigins = () => {
     onSaveAllowedOrigins(allowedOrigins);
+  };
+
+  const handleSaveAnonymousOrigins = () => {
+    onSaveAnonymousOrigins(allowedAnonymousOrigins);
   };
 
   const handleSaveRateLimit = () => {
@@ -693,6 +700,32 @@ export function OptionsModal({
                 className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
               >
                 {t('settings.other.corsSave')}
+              </button>
+            </div>
+
+            <hr className="border-gray-200" />
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.other.anonymousCors')}
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  {t('settings.other.anonymousCorsHint')}
+                </p>
+                <textarea
+                  value={allowedAnonymousOrigins}
+                  onChange={(e) => setAllowedAnonymousOrigins(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm font-mono"
+                  placeholder={t('settings.other.anonymousCorsPlaceholder')}
+                  rows={4}
+                />
+              </div>
+              <button
+                onClick={handleSaveAnonymousOrigins}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
+              >
+                {t('settings.other.anonymousCorsSave')}
               </button>
             </div>
 

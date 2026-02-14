@@ -6,6 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
+const maxmind = require('maxmind');
 
 const db = new sqlite3.Database('./chat.db', (err) => {
     if (err) console.error('DB Error:', err.message);
@@ -23,12 +24,95 @@ let systemLogsConfig = {
     pageVisits: 1       // page_visit
 };
 let allowedOrigins = [];
+let allowedAnonymousOrigins = [];
 let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
 let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
 let adminLanguage = 'uk';
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
+
+// GeoIP readers
+let cityLookup = null;
+let countryLookup = null;
+(async () => {
+    try {
+        const geoDir = path.join(__dirname, 'geo');
+        const cityPath = path.join(geoDir, 'city.mmdb');
+        const countryPath = path.join(geoDir, 'country.mmdb');
+        if (fs.existsSync(cityPath)) cityLookup = await maxmind.open(cityPath);
+        if (fs.existsSync(countryPath)) countryLookup = await maxmind.open(countryPath);
+        if (cityLookup || countryLookup) console.log('GeoIP databases loaded.');
+    } catch (e) { console.error('GeoIP load error:', e.message); }
+})();
+
+function getClientIp(req) {
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (cfIp) return cfIp;
+    const xForwarded = req.headers['x-forwarded-for'];
+    if (xForwarded) return xForwarded.split(',')[0].trim();
+    const xRealIp = req.headers['x-real-ip'];
+    if (xRealIp) return xRealIp;
+    return req.socket.remoteAddress;
+}
+
+function getGeoInfo(ip) {
+    if (!ip || ip === '::1' || ip === '127.0.0.1') return 'Localhost';
+    try {
+        const parts = [];
+        if (countryLookup) {
+            const country = countryLookup.get(ip);
+            if (country && country.country) parts.push(country.country.names.en);
+        }
+        if (cityLookup) {
+            const city = cityLookup.get(ip);
+            if (city) {
+                if (city.subdivisions && city.subdivisions.length > 0) parts.push(city.subdivisions[0].names.en);
+                if (city.city) parts.push(city.city.names.en);
+            }
+        }
+        if (parts.length > 0) return parts.join(', ') + ` (${ip})`;
+    } catch (e) {}
+    return ip;
+}
+
+function getPlatform(ua) {
+    if (!ua) return 'Unknown';
+    if (/linux/i.test(ua)) return 'Linux';
+    if (/macintosh|mac os x/i.test(ua)) return 'Mac';
+    if (/windows|win32/i.test(ua)) return 'Windows';
+    if (/android/i.test(ua)) return 'Android';
+    if (/iphone|ipad/i.test(ua)) return 'iOS';
+    return 'Unknown';
+}
+
+function getBrowser(ua) {
+    if (!ua) return 'Unknown';
+    if (/edg/i.test(ua)) return 'Edge';
+    if (/opr|opera/i.test(ua)) return 'Opera';
+    if (/chrome/i.test(ua) && !/edg/i.test(ua)) return 'Chrome';
+    if (/safari/i.test(ua) && !/chrome/i.test(ua)) return 'Safari';
+    if (/firefox/i.test(ua)) return 'Firefox';
+    if (/msie|trident/i.test(ua)) return 'Internet Explorer';
+    return 'Unknown';
+}
+
+function getSessionInfo(req) {
+    const ip = getClientIp(req);
+    const ua = req.headers['user-agent'] || '';
+    const geo = getGeoInfo(ip);
+    const platform = getPlatform(ua);
+    const browser = getBrowser(ua);
+    return { ip, geo, platform, browser, user_session: `${geo}, ${platform}, ${browser}` };
+}
+
+function isAnonymousOrigin(origin) {
+    if (allowedAnonymousOrigins.length === 0) return false;
+    return allowedAnonymousOrigins.some(allowed => {
+        const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`, 'i').test(origin);
+    });
+}
 
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS admins (
@@ -47,6 +131,7 @@ db.serialize(() => {
                                                   log_chat_widget INTEGER DEFAULT 1,
                                                   log_page_visits INTEGER DEFAULT 1,
                                                   allowed_origins TEXT DEFAULT '',
+                                                  allowed_anonymous_origins TEXT DEFAULT '',
                                                   admin_language TEXT DEFAULT 'uk'
             )`);
 
@@ -82,6 +167,7 @@ db.serialize(() => {
             systemLogsConfig.chatWidget = row.log_chat_widget !== undefined ? row.log_chat_widget : 1;
             systemLogsConfig.pageVisits = row.log_page_visits !== undefined ? row.log_page_visits : 1;
             allowedOrigins = (row.allowed_origins || '').split('\n').filter(o => o.trim());
+            allowedAnonymousOrigins = (row.allowed_anonymous_origins || '').split('\n').filter(o => o.trim());
             rateLimitConfig.maxMessagesPerMinute = row.max_messages_per_minute || 20;
             rateLimitConfig.maxMessageLength = row.max_message_length || 1000;
             messageLoadConfig.adminMessagesLimit = row.admin_messages_limit || 20;
@@ -104,6 +190,7 @@ db.serialize(() => {
                 if (!colNames.includes('log_chat_widget')) db.run("ALTER TABLE admins ADD COLUMN log_chat_widget INTEGER DEFAULT 1");
                 if (!colNames.includes('log_page_visits')) db.run("ALTER TABLE admins ADD COLUMN log_page_visits INTEGER DEFAULT 1");
                 if (!colNames.includes('allowed_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_origins TEXT DEFAULT ''");
+                if (!colNames.includes('allowed_anonymous_origins')) db.run("ALTER TABLE admins ADD COLUMN allowed_anonymous_origins TEXT DEFAULT ''");
                 if (!colNames.includes('max_messages_per_minute')) db.run("ALTER TABLE admins ADD COLUMN max_messages_per_minute INTEGER DEFAULT 20");
                 if (!colNames.includes('max_message_length')) db.run("ALTER TABLE admins ADD COLUMN max_message_length INTEGER DEFAULT 1000");
                 if (!colNames.includes('admin_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN admin_messages_limit INTEGER DEFAULT 20");
@@ -148,8 +235,9 @@ function checkApiToken(token, callback) {
 }
 
 function checkOriginAllowed(origin) {
-    if (allowedOrigins.length === 0) return true;
-    return allowedOrigins.some(allowed => {
+    if (allowedOrigins.length === 0 && allowedAnonymousOrigins.length === 0) return true;
+    const allOrigins = [...allowedOrigins, ...allowedAnonymousOrigins];
+    return allOrigins.some(allowed => {
         const pattern = allowed.trim().replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
         return new RegExp(`^${pattern}$`, 'i').test(origin);
     });
@@ -370,6 +458,7 @@ wss.on('connection', (ws, req) => {
                     realtimeTyping: realtimeTypingEnabled,
                     systemLogs: systemLogsConfig,
                     allowedOrigins: row.allowed_origins || '',
+                    allowedAnonymousOrigins: row.allowed_anonymous_origins || '',
                     maxMessagesPerMinute: rateLimitConfig.maxMessagesPerMinute,
                     maxMessageLength: rateLimitConfig.maxMessageLength,
                     adminMessagesLimit: messageLoadConfig.adminMessagesLimit,
@@ -455,6 +544,12 @@ wss.on('connection', (ws, req) => {
                             db.run("UPDATE admins SET allowed_origins = ? WHERE username = ?", [data.origins, 'admin'], () => {
                                 allowedOrigins = data.origins.split('\n').filter(o => o.trim());
                                 ws.send(JSON.stringify({ type: 'system', text: 'Дозволені домени збережено!' }));
+                            });
+                        }
+                        if (data.type === 'update_anonymous_origins') {
+                            db.run("UPDATE admins SET allowed_anonymous_origins = ? WHERE username = ?", [data.origins, 'admin'], () => {
+                                allowedAnonymousOrigins = data.origins.split('\n').filter(o => o.trim());
+                                ws.send(JSON.stringify({ type: 'system', text: 'Анонімні домени збережено!' }));
                             });
                         }
                         if (data.type === 'update_language') {
@@ -579,6 +674,19 @@ wss.on('connection', (ws, req) => {
 
     const userId = sessionId || 'anon_' + Math.random().toString(36).substr(2, 5);
     ws.userId = userId;
+    const anonymous = isAnonymousOrigin(origin);
+    ws.isAnonymous = anonymous;
+
+    // For anonymous users, auto-collect session info (GeoIP + UA)
+    if (anonymous) {
+        const sessionInfo = getSessionInfo(req);
+        const meta = { user_session: sessionInfo.user_session, geo: sessionInfo.geo, platform: sessionInfo.platform, browser: sessionInfo.browser, ip: sessionInfo.ip };
+        clientInfo.set(userId, meta);
+        updateSessionInfo(userId, meta);
+        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+            adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: meta }));
+        }
+    }
 
     // Check if this is a reconnect after page navigation
     const pendingDisconnect = pendingDisconnects.get(userId);
@@ -612,7 +720,8 @@ wss.on('connection', (ws, req) => {
         dateFormat: timeConfig.dateFormat,
         timeFormat: timeConfig.timeFormat,
         timezone: timeConfig.timezone,
-        messagesLimit: messageLoadConfig.widgetMessagesLimit
+        messagesLimit: messageLoadConfig.widgetMessagesLimit,
+        anonymous: anonymous
     }));
 
     getHistory(userId, (rows) => {

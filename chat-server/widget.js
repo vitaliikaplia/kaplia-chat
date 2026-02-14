@@ -23,7 +23,7 @@
         #kaplia-widget .k-input-area { padding: 10px; border-top: 1px solid #ddd; display: flex; gap: 10px; background: white; }
         #kaplia-widget .k-input-area input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
         #kaplia-widget .k-input-area button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 20px; cursor: pointer; }
-        
+
         /* Стиль для посилань у віджеті */
         #kaplia-widget .k-msg a { color: inherit; text-decoration: underline; font-weight: bold; }
     `;
@@ -48,6 +48,8 @@
     let loadingMore = false;
     let messagesLimit = 20;
     let oldestMsgId = null;
+    let isAnonymous = false;
+    let anonymousDisconnect = false; // flag to prevent auto-reconnect on intentional close
 
     if (config.metadata && config.metadata.user_id) { sessionId = 'auth_' + config.metadata.user_id; localStorage.setItem('kaplia_chat_id', sessionId); }
     else { sessionId = localStorage.getItem('kaplia_chat_id'); if (!sessionId || sessionId.startsWith('auth_')) { sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); } }
@@ -124,6 +126,7 @@
     }
 
     function sendTabVisibility() {
+        if (isAnonymous) return;
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'tab_visibility', isActive: !document.hidden }));
         }
@@ -131,6 +134,7 @@
 
     let lastSentUrl = null;
     function sendPageUrl() {
+        if (isAnonymous) return;
         const currentUrl = window.location.href;
         if (ws && ws.readyState === WebSocket.OPEN && currentUrl !== lastSentUrl) {
             ws.send(JSON.stringify({ type: 'page_visit', url: currentUrl }));
@@ -169,13 +173,28 @@
         }
     }
 
+    function disconnect() {
+        anonymousDisconnect = true;
+        stopHeartbeat();
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+    }
+
     function connect() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+        anonymousDisconnect = false;
         ws = new WebSocket(`${SERVER_URL}?session=${sessionId}`);
         ws.onopen = () => {
             if (config.metadata) ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
             sendTabVisibility();
             sendPageUrl();
             startHeartbeat();
+            // For anonymous mode, notify server chat is open (since we only connect when chat opens)
+            if (isAnonymous) {
+                ws.send(JSON.stringify({ type: 'chat_opened' }));
+            }
         };
         ws.onmessage = (event) => {
             try {
@@ -185,6 +204,7 @@
                     if (data.timeFormat) clientTimeFormat = data.timeFormat;
                     if (data.timezone !== undefined) serverTimezone = parseFloat(data.timezone);
                     if (data.messagesLimit) messagesLimit = data.messagesLimit;
+                    if (data.anonymous !== undefined) isAnonymous = data.anonymous;
                 }
 
                 if (data.text && !data.type) {
@@ -256,12 +276,21 @@
         };
         ws.onclose = () => {
             stopHeartbeat();
-            setTimeout(connect, 3000);
+            // For anonymous mode: don't auto-reconnect if we intentionally disconnected
+            if (!anonymousDisconnect) {
+                setTimeout(connect, 3000);
+            }
         };
     }
 
     showInitialMessages();
-    connect();
+
+    // For authenticated users (metadata present) - connect immediately
+    // For anonymous users (no metadata) - connect only when chat is opened
+    const hasMetadata = config.metadata && config.metadata.user_id;
+    if (hasMetadata) {
+        connect();
+    }
 
     document.getElementById('kChatBtn').onclick = toggleChat;
     document.getElementById('kCloseBtn').onclick = toggleChat;
@@ -281,15 +310,29 @@
         const isHidden = box.style.display === 'none' || box.style.display === '';
         box.style.display = isHidden ? 'flex' : 'none';
         if(isHidden) {
-            setTimeout(() => { inp.focus(); scrollToBottom(); }, 100);
-            // Notify server that chat was opened
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'chat_opened' }));
+            // For anonymous/no-metadata users: connect WebSocket when chat opens
+            if (!hasMetadata) {
+                connect();
+            } else {
+                // Notify server that chat was opened
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'chat_opened' }));
+                }
             }
+            setTimeout(() => { inp.focus(); scrollToBottom(); }, 100);
         } else {
-            // Notify server that chat was closed
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'chat_closed' }));
+            if (!hasMetadata && isAnonymous) {
+                // Anonymous mode: disconnect WebSocket when chat closes
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'chat_closed' }));
+                }
+                // Small delay to let chat_closed message send before closing
+                setTimeout(disconnect, 200);
+            } else {
+                // Notify server that chat was closed
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({ type: 'chat_closed' }));
+                }
             }
         }
     }

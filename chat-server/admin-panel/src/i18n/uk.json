@@ -147,6 +147,10 @@
       "corsHint": "Один домен на рядок. Підтримується * як wildcard. Пусто = всі домени дозволено.",
       "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
       "corsSave": "Зберегти домени",
+      "anonymousCors": "Домени для анонімних користувачів",
+      "anonymousCorsHint": "Домени де чат доступний без авторизації. WebSocket відкривається тільки при відкритті чату. GeoIP визначається автоматично.",
+      "anonymousCorsPlaceholder": "https://mysite.com\nhttps://*.mysite.com",
+      "anonymousCorsSave": "Зберегти анонімні домени",
       "language": "Мова інтерфейсу",
       "languageHint": "Оберіть мову адмін-панелі"
     }
@@ -161,6 +165,7 @@
     "realtimeTypingOn": "Перегляд набору: УВІМКНЕНО",
     "realtimeTypingOff": "Перегляд набору: ВИМКНЕНО",
     "corsSaved": "Дозволені домени збережено!",
+    "anonymousCorsSaved": "Анонімні домени збережено!",
     "rateLimitSaved": "Ліміти повідомлень збережено!",
     "messageLimitsSaved": "Ліміти збережено!",
     "languageSaved": "Мову змінено!"

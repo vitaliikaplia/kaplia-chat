@@ -147,6 +147,10 @@
       "corsHint": "One domain per line. Supports * as wildcard. Empty = all domains allowed.",
       "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
       "corsSave": "Save domains",
+      "anonymousCors": "Domains for anonymous users",
+      "anonymousCorsHint": "Domains where chat is available without authentication. WebSocket connects only when chat is opened. GeoIP is detected automatically.",
+      "anonymousCorsPlaceholder": "https://mysite.com\nhttps://*.mysite.com",
+      "anonymousCorsSave": "Save anonymous domains",
       "language": "Interface language",
       "languageHint": "Choose admin panel language"
     }
@@ -161,6 +165,7 @@
     "realtimeTypingOn": "Typing preview: ENABLED",
     "realtimeTypingOff": "Typing preview: DISABLED",
     "corsSaved": "Allowed domains saved!",
+    "anonymousCorsSaved": "Anonymous domains saved!",
     "rateLimitSaved": "Rate limits saved!",
     "messageLimitsSaved": "Limits saved!",
     "languageSaved": "Language changed!"

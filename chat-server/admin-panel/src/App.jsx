@@ -57,6 +57,7 @@ function AppContent() {
     updateSystemLogs,
     updateLanguage,
     updateAllowedOrigins,
+    updateAnonymousOrigins,
     updateRateLimit,
     updateMessageLimits,
   } = useWebSocket(handleSystemMessage, soundEnabled);
@@ -181,6 +182,11 @@ function AppContent() {
     setConfig({ allowedOrigins: origins });
   };
 
+  const handleSaveAnonymousOrigins = (origins) => {
+    updateAnonymousOrigins(origins);
+    setConfig({ allowedAnonymousOrigins: origins });
+  };
+
   const handleSaveRateLimit = (maxMessagesPerMinute, maxMessageLength) => {
     updateRateLimit(maxMessagesPerMinute, maxMessageLength);
     setConfig({ maxMessagesPerMinute, maxMessageLength });
@@ -279,6 +285,7 @@ function AppContent() {
         onSaveSystemLogs={handleSaveSystemLogs}
         onSaveLanguage={handleSaveLanguage}
         onSaveAllowedOrigins={handleSaveAllowedOrigins}
+        onSaveAnonymousOrigins={handleSaveAnonymousOrigins}
         onSaveRateLimit={handleSaveRateLimit}
         onSaveMessageLimits={handleSaveMessageLimits}
         soundEnabled={soundEnabled}

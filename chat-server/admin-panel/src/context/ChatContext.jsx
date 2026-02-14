@@ -26,6 +26,7 @@ const initialState = {
       pageVisits: true
     },
     allowedOrigins: '',
+    allowedAnonymousOrigins: '',
     language: 'uk',
     maxMessagesPerMinute: 20,
     maxMessageLength: 1000,

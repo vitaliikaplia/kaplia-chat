@@ -24,6 +24,8 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Real-time Communication**: Instant message delivery using WebSockets with synchronization across multiple user tabs.
 - **Spy Typing (Real-time Preview)**: Admins can see what users are typing in real-time before they hit send, allowing for faster responses.
 - **Origin/CORS Control**: Restrict widget usage to specific domains with wildcard support (e.g., `https://*.example.com`). Empty list allows all origins.
+- **Anonymous Users Support**: Separate domain list for anonymous (unauthenticated) visitors. On anonymous domains, WebSocket connects only when the chat widget is opened and disconnects when closed. No tab/page tracking events are sent for anonymous users.
+- **GeoIP Detection**: Automatic server-side geolocation using MaxMind databases (city.mmdb, country.mmdb). Detects country, region, city, and IP address for anonymous users. Also parses User-Agent to determine platform (Windows, Mac, Linux, Android, iOS) and browser (Chrome, Firefox, Safari, Edge, Opera).
 
 ### Admin Panel (React + Vite)
 - **Modern UI**: Rebuilt with React and Vite for better performance and user experience.
@@ -44,7 +46,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
 - **Clear Activity Log**: One-click button to delete all system messages from a chat.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
-- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS) in one modal with tabs.
+- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS, Anonymous domains) in one modal with tabs.
 - **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
 - **Remember Me**: Option to stay logged in across browser sessions.
 - **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background). No duplicate "login successful" notifications on reconnect.
@@ -70,7 +72,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ### Other Features
 - **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.
-- **Simple Integration**: Easily add the chat widget to any website with a simple JavaScript snippet.
+- **Simple Integration**: Easily add the chat widget to any website with a simple JavaScript snippet. Supports both authenticated (with user metadata) and anonymous modes.
 - **REST API & Webhooks**: Programmatically send messages and receive notifications for seamless integration with other services.
 - **Secure & Self-Hosted**: Run it on your own infrastructure under Nginx with SSL encryption for maximum privacy and control.
 - **Automation-Ready**: Perfectly suited for integration with platforms like n8n, Zapier, or Make.
@@ -184,13 +186,19 @@ Configure Nginx to handle SSL and forward traffic, including WebSocket connectio
     mkdir ~/chat-server
     cd ~/chat-server
     ```
-    *Note: Place the application files (`index.js`, `widget.js`, `admin-panel/dist/`, etc.) in this directory.*
+    *Note: Place the application files (`index.js`, `widget.js`, `admin-panel/dist/`, `geo/`, etc.) in this directory.*
 
 2.  **Initialize the project and install dependencies**:
     ```bash
     npm init -y
-    npm install ws express better-sqlite3
+    npm install ws express better-sqlite3 bcryptjs maxmind
     ```
+
+3.  **Add GeoIP databases** (optional, for anonymous user geolocation):
+    ```bash
+    mkdir geo
+    ```
+    Place `city.mmdb` and `country.mmdb` files from [MaxMind](https://www.maxmind.com/) into the `geo/` directory. If the files are not present, the server will start without GeoIP support.
 
 ### Step 5: Run the Application with PM2
 
@@ -274,6 +282,34 @@ Add the following snippet just before your closing `</body>` tag:
 
 *Note: Replace `https://chat.yourdomain.com` with the actual URL of your deployed chat server.*
 
+### Anonymous Integration (Public Websites)
+
+For public-facing websites where visitors are anonymous, omit the `metadata` field. The server will automatically detect the visitor's location (GeoIP), platform, and browser via User-Agent.
+
+```html
+<script>
+    window.KapliaChatConfig = {
+        defaultLanguage: 'en',
+        initialMessages: ['Hello! How can I help you today?'],
+        i18n: {
+            en: {
+                title: 'Live Chat',
+                subtitle: 'We are here to help!',
+                inputPlaceholder: 'Type your question..',
+                sendBtn: 'Send'
+            }
+        }
+    };
+</script>
+<script src="https://chat.yourdomain.com/widget.js"></script>
+```
+
+For anonymous mode to work, add the website domain to **Settings -> Anonymous domains** in the Admin Panel. On anonymous domains:
+- WebSocket connects only when the user opens the chat widget (not on page load)
+- WebSocket disconnects when the user closes the chat widget
+- Tab visibility and page navigation events are not tracked
+- GeoIP and User-Agent data is collected automatically on the server side
+
 ### Example Client Page
 
 For a full working example of how to embed and configure the chat widget, refer to the `chat-client/chat.html` file in this repository. It demonstrates a basic HTML page with the chat widget integrated, showing how to pass initial configuration and metadata.
@@ -323,14 +359,14 @@ The server can send an instant notification to a specified URL whenever a user s
 #### 3. Request Body (JSON Payload)
 The server sends a JSON object containing the message text and all available session metadata.
 
-**Example Payload:**
+**Example Payload (authenticated user):**
 ```json
 {
   "session_data": [
     {
       "session_id": "user_am6ysq",
       "metadata": {
-        "user_session": "Ukraine, Kyiv Oblast, Olenivka (31.43.52.185), Mac, Google Chrome",
+        "user_session": "Ukraine, Kyiv Oblast, Olenivka (31.43.52.185), Mac, Chrome",
         "user_id": "2",
         "user_name": "Vitaliy Kaplia",
         "user_email": "vitalii.kaplia@gmail.com"
@@ -339,6 +375,26 @@ The server sends a JSON object containing the message text and all available ses
     }
   ],
   "message_text": "Hello, I have a question about my order!"
+}
+```
+
+**Example Payload (anonymous user):**
+```json
+{
+  "session_data": [
+    {
+      "session_id": "guest_k7x2m9",
+      "metadata": {
+        "user_session": "Germany, Bavaria, Munich (85.214.132.45), Windows, Chrome",
+        "geo": "Germany, Bavaria, Munich (85.214.132.45)",
+        "platform": "Windows",
+        "browser": "Chrome",
+        "ip": "85.214.132.45"
+      },
+      "updated_at": "2025-12-15 14:22:10"
+    }
+  ],
+  "message_text": "Hi, I need help with pricing"
 }
 ```
 
@@ -485,17 +541,93 @@ This creates optimized files in `admin-panel/dist/` directory that are served by
 ### Project Structure
 
 ```
-admin-panel/
-├── src/
-│   ├── components/     # React components (Modal, Sidebar, ChatArea, etc.)
-│   ├── context/        # React Context for state management
-│   ├── hooks/          # Custom hooks (useWebSocket)
-│   ├── i18n/           # Internationalization (uk.json, en.json, ru.json)
-│   ├── utils/          # Utilities (notification sounds)
-│   ├── App.jsx         # Main application component
-│   └── main.jsx        # Entry point
-├── dist/               # Production build (served by server)
+chat-server/
+├── index.js              # Main server (WebSocket + HTTP API)
+├── widget.js             # Client-side chat widget
+├── deploy-webhook.js     # GitHub webhook receiver (port 9000)
+├── deploy.sh             # Auto-deploy shell script
+├── geo/                  # MaxMind GeoIP databases (optional)
+│   ├── city.mmdb
+│   └── country.mmdb
+├── admin-panel/
+│   ├── src/
+│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, etc.)
+│   │   ├── context/      # React Context for state management
+│   │   ├── hooks/        # Custom hooks (useWebSocket)
+│   │   ├── i18n/         # Internationalization (uk.json, en.json, ru.json)
+│   │   ├── utils/        # Utilities (notification sounds)
+│   │   ├── App.jsx       # Main application component
+│   │   └── main.jsx      # Entry point
+│   ├── dist/             # Production build (served by server)
+│   └── package.json
 └── package.json
+```
+
+---
+
+## Auto-Deploy Setup
+
+The project supports automatic deployment via GitHub webhooks. When you push to the `master` branch, the server automatically pulls the latest code, rebuilds the admin panel, and restarts.
+
+### How It Works
+
+```
+git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → done
+```
+
+### Server Setup
+
+1. **Set the webhook secret** as an environment variable. Generate one with:
+    ```bash
+    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+    ```
+
+2. **Start the deploy webhook** with PM2:
+    ```bash
+    cd ~/chat-server
+    DEPLOY_SECRET=your_secret_here pm2 start deploy-webhook.js --name "deploy-hook"
+    pm2 save
+    ```
+
+3. **Add Nginx location** for the webhook. In your existing server block (`/etc/nginx/sites-available/chat.kaplia.pro`), add:
+    ```nginx
+    location /deploy {
+        proxy_pass http://localhost:9000/deploy;
+        proxy_set_header X-Hub-Signature-256 $http_x_hub_signature_256;
+        proxy_set_header Content-Type $content_type;
+    }
+    ```
+    Then reload Nginx:
+    ```bash
+    sudo nginx -t && sudo systemctl reload nginx
+    ```
+
+4. **Allow port 9000** in firewall (only needed if not proxying through Nginx):
+    ```bash
+    sudo ufw allow 9000
+    ```
+
+### GitHub Setup
+
+1. Go to your repository on GitHub → **Settings** → **Webhooks** → **Add webhook**
+2. **Payload URL**: `https://chat.kaplia.pro/deploy`
+3. **Content type**: `application/json`
+4. **Secret**: Same secret you set in step 1
+5. **Events**: Select "Just the push event"
+6. Click **Add webhook**
+
+### Deploy Logs
+
+All deploy activity is logged to `deploy.log` in the chat-server directory:
+```bash
+tail -f ~/chat-server/deploy.log
+```
+
+### Manual Deploy
+
+You can still trigger a deploy manually:
+```bash
+cd ~/chat-server && bash deploy.sh
 ```
 
 ---

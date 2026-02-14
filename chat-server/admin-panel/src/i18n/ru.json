@@ -147,6 +147,10 @@
       "corsHint": "Один домен на строку. Поддерживается * как wildcard. Пусто = все домены разрешены.",
       "corsPlaceholder": "https://example.com\nhttps://*.mydomain.com",
       "corsSave": "Сохранить домены",
+      "anonymousCors": "Домены для анонимных пользователей",
+      "anonymousCorsHint": "Домены где чат доступен без авторизации. WebSocket открывается только при открытии чата. GeoIP определяется автоматически.",
+      "anonymousCorsPlaceholder": "https://mysite.com\nhttps://*.mysite.com",
+      "anonymousCorsSave": "Сохранить анонимные домены",
       "language": "Язык интерфейса",
       "languageHint": "Выберите язык админ-панели"
     }
@@ -161,6 +165,7 @@
     "realtimeTypingOn": "Просмотр набора: ВКЛЮЧЕНО",
     "realtimeTypingOff": "Просмотр набора: ВЫКЛЮЧЕНО",
     "corsSaved": "Разрешённые домены сохранены!",
+    "anonymousCorsSaved": "Анонимные домены сохранены!",
     "rateLimitSaved": "Лимиты сообщений сохранены!",
     "messageLimitsSaved": "Лимиты сохранены!",
     "languageSaved": "Язык изменён!"

@@ -51,6 +51,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           realtimeTyping: data.realtimeTyping || false,
           systemLogs: data.systemLogs || { onlineStatus: true, tabActivity: true, chatWidget: true, pageVisits: true },
           allowedOrigins: data.allowedOrigins || '',
+          allowedAnonymousOrigins: data.allowedAnonymousOrigins || '',
           maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
           maxMessageLength: data.maxMessageLength || 1000,
           language: data.language || 'uk',
@@ -336,6 +337,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             realtimeTyping: data.realtimeTyping || false,
             systemLogs: data.systemLogs || { onlineStatus: true, tabActivity: true, chatWidget: true, pageVisits: true },
             allowedOrigins: data.allowedOrigins || '',
+            allowedAnonymousOrigins: data.allowedAnonymousOrigins || '',
             maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
             maxMessageLength: data.maxMessageLength || 1000,
             adminMessagesLimit: data.adminMessagesLimit || 20,
@@ -446,6 +448,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_allowed_origins', origins });
   }, [send]);
 
+  const updateAnonymousOrigins = useCallback((origins) => {
+    send({ type: 'update_anonymous_origins', origins });
+  }, [send]);
+
   const updateRateLimit = useCallback((maxMessagesPerMinute, maxMessageLength) => {
     send({ type: 'update_rate_limit', maxMessagesPerMinute, maxMessageLength });
   }, [send]);
@@ -506,6 +512,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateSystemLogs,
     updateLanguage,
     updateAllowedOrigins,
+    updateAnonymousOrigins,
     updateRateLimit,
     updateMessageLimits,
   };

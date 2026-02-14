@@ -4,6 +4,7 @@
 # Chat specific files
 chat-server/chat.db
 chat-server/data.sqlite
+chat-server/deploy.log
 
 # Node.js dependencies
 node_modules/
