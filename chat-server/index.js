@@ -682,9 +682,19 @@ wss.on('connection', (ws, req) => {
     ws.isAnonymous = anonymous;
 
     // For anonymous users, auto-collect session info (GeoIP + UA)
+    // Also populate user_name/user_id/user_email for compatibility with n8n/webhook integrations
     if (anonymous) {
         const sessionInfo = getSessionInfo(req);
-        const meta = { user_session: sessionInfo.user_session, geo: sessionInfo.geo, platform: sessionInfo.platform, browser: sessionInfo.browser, ip: sessionInfo.ip };
+        const meta = {
+            user_session: sessionInfo.user_session,
+            user_name: sessionInfo.geo || 'Anonymous',
+            user_id: userId,
+            user_email: sessionInfo.ip || '',
+            geo: sessionInfo.geo,
+            platform: sessionInfo.platform,
+            browser: sessionInfo.browser,
+            ip: sessionInfo.ip
+        };
         clientInfo.set(userId, meta);
         updateSessionInfo(userId, meta);
         if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
