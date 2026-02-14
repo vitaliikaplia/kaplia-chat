@@ -9,5 +9,3 @@ chat-server/deploy.log
 # Node.js dependencies
 node_modules/
 
-# Claude Code context
-CLAUDE.md
