@@ -92,9 +92,10 @@
     }
 
     function showInitialMessages() {
-        if (!hasHistory && config.initialMessages && config.initialMessages.length > 0) {
+        const messages = (texts && texts.initialMessages) || config.initialMessages;
+        if (!hasHistory && messages && messages.length > 0) {
             const now = new Date().toISOString();
-            config.initialMessages.forEach(msg => addMsg(msg, 'support', now, null, true));
+            messages.forEach(msg => addMsg(msg, 'support', now, null, true));
         }
     }
 
