@@ -718,7 +718,7 @@ wss.on('connection', (ws, req) => {
         const meta = {
             user_session: sessionParts.join(', '),
             user_name: anonName,
-            user_id: userId,
+            user_id: userId.replace(/_/g, '-'),
             user_email: 'anonymous',
             geo: sessionInfo.geo,
             platform: sessionInfo.platform,
