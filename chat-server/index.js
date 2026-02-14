@@ -719,7 +719,7 @@ wss.on('connection', (ws, req) => {
             user_session: sessionParts.join(', '),
             user_name: anonName,
             user_id: userId,
-            user_email: anonName.toLowerCase().replace(/\s+/g, '.') + '@anonymous',
+            user_email: 'anonymous',
             geo: sessionInfo.geo,
             platform: sessionInfo.platform,
             browser: sessionInfo.browser,
