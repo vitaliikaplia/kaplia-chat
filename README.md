@@ -387,8 +387,8 @@ The server sends a JSON object containing the message text and all available ses
       "metadata": {
         "user_session": "Germany, Bavaria, Munich, Windows, Chrome",
         "user_name": "Смілива Коала",
-        "user_id": "guest_k7x2m9",
-        "user_email": "смілива.коала@anonymous",
+        "user_id": "guest-k7x2m9",
+        "user_email": "anonymous",
         "geo": "Germany, Bavaria, Munich (85.214.132.45)",
         "platform": "Windows",
         "browser": "Chrome",
