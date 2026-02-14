@@ -8,6 +8,32 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const maxmind = require('maxmind');
 
+// Anonymous name generator (deterministic based on sessionId)
+const ANON_ADJECTIVES = [
+    'Невідома', 'Таємнича', 'Хоробра', 'Весела', 'Мудра',
+    'Швидка', 'Тиха', 'Зоряна', 'Лісова', 'Сонячна',
+    'Грайлива', 'Спритна', 'Чарівна', 'Славна', 'Вільна',
+    'Смілива', 'Ніжна', 'Яскрава', 'Дивна', 'Казкова'
+];
+const ANON_ANIMALS = [
+    'Черепаха', 'Панда', 'Лисиця', 'Сова', 'Бджола',
+    'Білка', 'Зірка', 'Жирафа', 'Видра', 'Коала',
+    'Чайка', 'Метелик', 'Ластівка', 'Рись', 'Зебра',
+    'Кішка', 'Хмарка', 'Перлина', 'Квітка', 'Ягідка'
+];
+
+function generateAnonName(sessionId) {
+    let hash = 0;
+    for (let i = 0; i < sessionId.length; i++) {
+        hash = ((hash << 5) - hash) + sessionId.charCodeAt(i);
+        hash = hash & hash; // Convert to 32-bit integer
+    }
+    hash = Math.abs(hash);
+    const adj = ANON_ADJECTIVES[hash % ANON_ADJECTIVES.length];
+    const animal = ANON_ANIMALS[Math.floor(hash / ANON_ADJECTIVES.length) % ANON_ANIMALS.length];
+    return `${adj} ${animal}`;
+}
+
 const db = new sqlite3.Database('./chat.db', (err) => {
     if (err) console.error('DB Error:', err.message);
     else console.log('Connected to SQLite database.');
@@ -687,7 +713,7 @@ wss.on('connection', (ws, req) => {
         const sessionInfo = getSessionInfo(req);
         const meta = {
             user_session: sessionInfo.user_session,
-            user_name: sessionInfo.geo || 'Anonymous',
+            user_name: generateAnonName(userId),
             user_id: userId,
             user_email: sessionInfo.ip || '',
             geo: sessionInfo.geo,
