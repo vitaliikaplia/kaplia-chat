@@ -711,11 +711,15 @@ wss.on('connection', (ws, req) => {
     // Also populate user_name/user_id/user_email for compatibility with n8n/webhook integrations
     if (anonymous) {
         const sessionInfo = getSessionInfo(req);
+        const anonName = generateAnonName(userId);
+        // Build clean user_session without IP in parentheses (avoids HTML parse errors in Telegram)
+        const geoClean = sessionInfo.geo ? sessionInfo.geo.replace(/\s*\([^)]*\)/, '') : '';
+        const sessionParts = [geoClean, sessionInfo.platform, sessionInfo.browser].filter(Boolean);
         const meta = {
-            user_session: sessionInfo.user_session,
-            user_name: generateAnonName(userId),
+            user_session: sessionParts.join(', '),
+            user_name: anonName,
             user_id: userId,
-            user_email: sessionInfo.ip || '',
+            user_email: anonName.toLowerCase().replace(/\s+/g, '.') + '@anonymous',
             geo: sessionInfo.geo,
             platform: sessionInfo.platform,
             browser: sessionInfo.browser,
