@@ -26,7 +26,7 @@
         #kaplia-widget .k-date-divider { align-self: center; background: rgba(0,0,0,0.1); color: #555; padding: 2px 8px; border-radius: 8px; font-size: 11px; margin: 10px 0; }
         #kaplia-widget .k-input-area { padding: 10px; border-top: 1px solid #ddd; display: flex; gap: 10px; background: white; }
         #kaplia-widget .k-input-area input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; }
-        #kaplia-widget .k-input-area button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 20px; cursor: pointer; }
+        #kaplia-widget .k-input-area button { width: 38px; height: 38px; background: #007bff; color: white; border: none; border-radius: 50%; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
         /* Стиль для посилань у віджеті */
         #kaplia-widget .k-msg a { color: inherit; text-decoration: underline; font-weight: bold; }
@@ -53,7 +53,7 @@
 
     const chatContainer = document.createElement('div');
     chatContainer.id = 'kaplia-widget';
-    chatContainer.innerHTML = `<button class="kaplia-chat-btn" id="kChatBtn">💬</button><div class="kaplia-chat-box" id="kChatBox"><div class="k-header"><div class="k-title"><span>${texts.title}</span><span class="k-close" id="kCloseBtn">×</span></div><div class="k-subtitle">${texts.subtitle}</div></div><div class="k-messages" id="kMsgs"></div><div class="k-input-area"><input type="text" id="kInput" placeholder="${texts.inputPlaceholder}"><button id="kSendBtn">${texts.sendBtn || 'Send'}</button></div></div>`;
+    chatContainer.innerHTML = `<button class="kaplia-chat-btn" id="kChatBtn">💬</button><div class="kaplia-chat-box" id="kChatBox"><div class="k-header"><div class="k-title"><span>${texts.title}</span><span class="k-close" id="kCloseBtn">×</span></div><div class="k-subtitle">${texts.subtitle}</div></div><div class="k-messages" id="kMsgs"></div><div class="k-input-area"><input type="text" id="kInput" placeholder="${texts.inputPlaceholder}"><button id="kSendBtn"><svg viewBox="0 0 626.339 626.339" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"><path d="m391.72 626.339c-8.862 0-17.742-1.754-26.074-5.301-22.549-9.597-33.349-31.197-54.868-74.229l-74.1-148.204s-.001 0-.001 0l-.015-.03c-1.162-2.325-2.357-4.716-3.004-5.89-1.175-.648-3.569-1.845-5.896-3.008l-148.188-74.097c-43.055-21.525-64.667-32.33-74.271-54.889-8.301-19.496-6.784-42.009 4.06-60.219 12.541-21.062 35.407-28.871 80.963-44.426l409.914-139.972c38.995-13.315 60.471-20.648 82.308-12.934 19.089 6.746 33.904 21.561 40.649 40.649 7.717 21.846.382 43.322-12.934 82.311l-139.971 409.913c-15.562 45.568-23.367 68.428-44.424 80.966-10.431 6.209-22.273 9.36-34.149 9.36zm3.337-64.653s0 0 0 0t0 0zm-95.996-187.385 71.326 142.652c7.88 15.759 15.961 31.92 21.193 40.096 4.09-8.805 9.929-25.903 15.614-42.554l128.717-376.956zm-229.771-139.543c8.18 5.237 24.35 13.32 40.095 21.191l142.498 71.252 236.831-236.744-376.846 128.679c-16.661 5.688-33.77 11.53-42.578 15.621zm-5.061 2.824s0 0 0 0t0 0zm.426-6.303s0 0 0 0z"/></svg></button></div></div>`;
     document.body.appendChild(chatContainer);
 
     const box = document.getElementById('kChatBox');
