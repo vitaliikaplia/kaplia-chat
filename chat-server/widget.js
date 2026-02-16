@@ -124,12 +124,20 @@
         if (dateStr !== lastRenderedDate) { lastRenderedDate = dateStr; const div = document.createElement('div'); div.className = 'k-date-divider'; div.innerText = dateStr; msgs.insertBefore(div, typingEl); }
     }
 
-    function showInitialMessages() {
+    let initialMessagesShown = false;
+
+    function showGreeting() {
+        if (initialMessagesShown) return;
         const messages = (texts && texts.initialMessages) || config.initialMessages;
-        if (!hasHistory && messages && messages.length > 0) {
+        if (messages && messages.length > 0) {
             const now = new Date().toISOString();
             messages.forEach(msg => addMsg(msg, 'support', now, null, true));
         }
+        initialMessagesShown = true;
+    }
+
+    function showInitialMessages() {
+        showGreeting();
         // Show name form for anonymous users without saved name
         if (!hasMetadata && !savedName) {
             showNameForm();
@@ -298,22 +306,24 @@
                     typingEl.style.display = 'none';
                     msgs.appendChild(typingEl);
                     lastRenderedDate = null;
+                    initialMessagesShown = false;
                     hasMoreMessages = data.hasMore || false;
+                    // Always show greeting first
+                    showGreeting();
                     if (data.messages && data.messages.length > 0) {
                         hasHistory = true;
                         oldestMsgId = data.messages[0].id;
                         data.messages.forEach(msg => { addMsg(msg.text, msg.sender === 'support' ? 'support' : 'me', msg.timestamp, msg.id); });
                     } else {
-                        // No history - show initial messages
                         hasHistory = false;
                         // For anonymous users: reset saved name so form appears again
                         // (but not right after submitting name form — that's a fresh session)
                         if (!hasMetadata && !justSubmittedName) {
                             localStorage.removeItem('kaplia_user_name');
                             savedName = '';
+                            showNameForm();
                         }
                         justSubmittedName = false;
-                        showInitialMessages();
                     }
                 }
                 if (data.type === 'more_history') {
@@ -348,7 +358,7 @@
                     if (el) el.remove();
                 }
 
-                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); localStorage.removeItem('kaplia_user_name'); savedName = ''; sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
+                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; initialMessagesShown = false; localStorage.removeItem('kaplia_chat_id'); localStorage.removeItem('kaplia_user_name'); savedName = ''; sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
 
                 if (data.type === 'error') {
                     let errorMsg = '';
