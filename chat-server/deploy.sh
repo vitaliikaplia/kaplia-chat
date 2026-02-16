@@ -38,3 +38,14 @@ cd "$DEPLOY_DIR"
 pm2 restart chat-widget
 
 echo "=== Deploy finished at $(date) ==="
+
+# Telegram notification
+if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+    COMMIT_MSG=$(cd "$DEPLOY_DIR" && git log -1 --pretty=format:"%s")
+    COMMIT_HASH=$(cd "$DEPLOY_DIR" && git log -1 --pretty=format:"%h")
+    TEXT="✅ <b>Kaplia Chat deployed</b>%0A%0A<code>${COMMIT_HASH}</code> ${COMMIT_MSG}"
+    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+        -d chat_id="$TELEGRAM_CHAT_ID" \
+        -d text="$TEXT" \
+        -d parse_mode="HTML" > /dev/null 2>&1 || true
+fi
