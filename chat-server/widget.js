@@ -269,7 +269,6 @@
                 }
 
                 if (data.type === 'admin_typing') {
-                    console.log('[kaplia] admin_typing:', data.isTyping);
                     typingEl.style.display = data.isTyping ? 'block' : 'none';
                     if (data.isTyping) { msgs.appendChild(typingEl); scrollToBottom(); }
                 }

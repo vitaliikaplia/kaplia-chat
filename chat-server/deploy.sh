@@ -20,7 +20,7 @@ cp -f "$DEPLOY_DIR/$REPO_SUBDIR/widget.js" "$DEPLOY_DIR/"
 cp -f "$DEPLOY_DIR/$REPO_SUBDIR/package.json" "$DEPLOY_DIR/"
 cp -f "$DEPLOY_DIR/$REPO_SUBDIR/deploy-webhook.js" "$DEPLOY_DIR/"
 cp -f "$DEPLOY_DIR/$REPO_SUBDIR/deploy.sh" "$DEPLOY_DIR/"
-cp -rf "$DEPLOY_DIR/$REPO_SUBDIR/admin-panel/" "$DEPLOY_DIR/admin-panel/"
+rsync -a --delete "$DEPLOY_DIR/$REPO_SUBDIR/admin-panel/" "$DEPLOY_DIR/admin-panel/"
 
 echo ">> npm install (server)"
 cd "$DEPLOY_DIR"
