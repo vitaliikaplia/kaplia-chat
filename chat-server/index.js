@@ -644,6 +644,10 @@ wss.on('connection', (ws, req) => {
                         }
 
                         if (data.type === 'admin_typing') {
+                            console.log('[admin_typing] targetId:', data.targetId, 'isTyping:', data.isTyping);
+                            let count = 0;
+                            wss.clients.forEach(client => { if (client.userId === data.targetId && client.readyState === WebSocket.OPEN) count++; });
+                            console.log('[admin_typing] matching clients:', count);
                             sendToUserTabs(data.targetId, { type: 'admin_typing', isTyping: data.isTyping });
                         }
 
