@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { useChat } from '../context/ChatContext';
 import { playNotificationSound } from '../utils/notificationSound';
+import { startTitleFlash } from '../utils/titleNotification';
 
 export function useWebSocket(onSystemMessage, soundEnabled = true) {
   const soundEnabledRef = useRef(soundEnabled);
@@ -129,10 +130,11 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
         if (data.from !== activeUserIdRef.current) {
           setNotification(data.from, true);
         }
-        // Play notification sound
+        // Play notification sound and flash tab title
         if (soundEnabledRef.current) {
           playNotificationSound();
         }
+        startTitleFlash();
         break;
 
       case 'client_typing':
