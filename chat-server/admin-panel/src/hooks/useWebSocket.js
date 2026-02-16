@@ -87,6 +87,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
 
       case 'user_info_update':
         addUser(data.id);
+        setUserOnline(data.id, true);
         updateUserInfo(data.id, data.info);
         break;
 
