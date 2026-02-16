@@ -33,20 +33,22 @@ kaplia-chat/
 │   ├── widget.js             # Client widget script
 │   ├── deploy-webhook.js     # GitHub webhook receiver (port 9000)
 │   ├── deploy.sh             # Auto-deploy shell script
+│   ├── .env                  # Telegram credentials (not in git)
 │   ├── chat.db               # SQLite database
 │   ├── geo/                  # MaxMind GeoIP databases
 │   │   ├── city.mmdb
 │   │   └── country.mmdb
 │   └── admin-panel/
 │       ├── src/
-│       │   ├── components/   # React components
+│       │   ├── components/   # React components (EditUserModal, Sidebar, ChatArea, etc.)
 │       │   ├── context/      # ChatContext (global state)
 │       │   ├── hooks/        # useWebSocket hook
 │       │   ├── i18n/         # Internationalization (uk, en, ru)
-│       │   └── utils/        # dateUtils, linkUtils, notificationSound
+│       │   └── utils/        # dateUtils, linkUtils, notificationSound, titleNotification
 │       └── dist/             # Production build (served by server)
 ├── chat-client/
 │   └── chat.html             # Example client integration
+├── CLAUDE.md                 # Project context for AI assistants
 └── README.md
 ```
 
@@ -58,14 +60,18 @@ kaplia-chat/
 - `admin_reply` - Reply from admin to client
 - `user_list` - List of active sessions
 - `client_typing` - Real-time typing preview (spy mode)
+- `admin_typing` - Admin is typing indicator (animated dots in widget)
 - `history_data` - Chat history for session
 - `system` - System notifications (shown as toast)
 - `user_connected` - User opened page with widget (with msgId if saved to DB)
 - `user_left` - User closed page (with msgId if saved to DB)
+- `user_info_update` - User metadata changed (triggers addUser + setUserOnline + updateUserInfo)
 - `tab_visibility` - User tab active/inactive state (UI only, no msgId)
 - `system_event` - Delayed system event saved to DB (tab_active/tab_inactive)
 - `chat_opened` / `chat_closed` - User opened/closed chat widget
 - `page_visit` - User navigated to a page (includes URL)
+- `admin_update_user` - Admin edits user name/notes (saves to clientInfo + SQLite)
+- `reset_chat` - Admin deleted session, widget resets (new sessionId for anonymous)
 
 ### Database Tables
 - `config` - Key-value settings (password, token, webhook, rate limits, etc.)
@@ -75,10 +81,23 @@ kaplia-chat/
 
 ### Admin Panel State
 - `ChatContext` - Global state (users, messages, config, activeUserId, onlineUsers, tabActiveUsers)
-- `useWebSocket` - WebSocket connection, auto-reconnect, sound notifications
+- `useWebSocket` - WebSocket connection, auto-reconnect, sound notifications, `updateUserInfoFromAdmin()`
 - `I18nProvider` - Internationalization context (uk, en, ru languages)
 - Settings stored in `localStorage`: `kaplia_admin_pass`, `kaplia_sound_enabled`, `kaplia_sound_type`
 - Language stored in database (`admin_language` column in config table)
+
+### Key Admin Components
+- `EditUserModal` - Edit user name (2-60 chars) and admin notes (0-300 chars)
+- `Sidebar` - User list with online/tab indicators, notes icon, edit/delete buttons
+- `ChatArea` - Message list with pagination, input area, typing indicator
+- `Modal` - Base modal wrapper (sizes: sm, md, lg, xl)
+- `ConfirmModal` - Delete confirmation dialogs
+
+### Key Utils
+- `titleNotification.js` - Flashing tab title on new messages (startTitleFlash/stopTitleFlash)
+- `notificationSound.js` - 10 notification sounds with preview
+- `dateUtils.js` - Date/time formatting with timezone support
+- `linkUtils.js` - URL detection and clickable link conversion
 
 ### Navigation Detection (Anti-Spam for System Logs)
 Server uses delayed logging to distinguish page navigation from real events:
@@ -90,11 +109,15 @@ Server uses delayed logging to distinguish page navigation from real events:
 ## Features Implemented
 - Real-time chat via WebSocket
 - Spy typing (see what user types before send)
+- Admin typing indicator (animated dots in widget)
 - Rate limiting (max messages/min, max message length)
 - 10 notification sounds with preview
+- Flashing tab title on new messages (when admin tab is in background)
 - CORS control (allowed origins with wildcard)
 - Remember me + auto-reconnect (silent reconnect without toast)
 - Delete messages and sessions
+- Edit user (name + admin notes) from sidebar with pencil button
+- Notes indicator icon in sidebar (amber, with tooltip)
 - Webhook for incoming messages
 - REST API for sending messages
 - Timezone/date format settings
@@ -113,18 +136,26 @@ Server uses delayed logging to distinguish page navigation from real events:
 - Internationalization (i18n) - Ukrainian, English, Russian languages
 - Mobile responsive design with swipe gestures
 - Anonymous users support (separate domain list, lazy WebSocket connect)
+- Anonymous name form (widget asks for name, sends to server)
 - Anonymous name generator (deterministic Ukrainian adjective + animal, e.g. "Смілива Коала")
+- Welcome messages for new anonymous users (personalized greeting + admin notification)
+- Anonymous session reset (new sessionId on admin delete, no auto-reconnect)
 - GeoIP detection via MaxMind (country, region, city, IP)
 - User-Agent parsing (platform + browser detection)
+- SVG icons for widget buttons (send arrow + chat bubble)
 - Auto-deploy via GitHub webhook (`deploy-webhook.js` on port 9000 + `deploy.sh`)
+- Telegram notifications on successful deploy
 
 ## Auto-Deploy
 ```
-git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → pm2 restart
+git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → pm2 restart → Telegram notification
 ```
-- `deploy-webhook.js` - HMAC signature verification, listens on port 9000
-- `deploy.sh` - git pull, copy files, npm install, build admin panel, pm2 restart
-- PM2 process name: `deploy-hook`
+- `deploy-webhook.js` - HMAC signature verification, listens on port 9000, PM2 process: `deploy-hook`
+- `deploy.sh` - git pull, rsync files to ~/chat-server/, npm install, build admin panel, pm2 restart chat-widget
+- Telegram notification sent after successful deploy (requires TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID in .env)
+- `.env` file in ~/chat-server/ (not in git) — loaded by deploy.sh
+- Deploy logs: `~/chat-server/deploy.log`
+- **Important**: Admin panel is NOT built locally. Only commit and push — auto-deploy builds on server.
 
 ## Git Tags
 - `v1.0-native-js` - Old version with vanilla JS admin panel

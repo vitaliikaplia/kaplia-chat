@@ -33,6 +33,10 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Multi-language Support**: Admin panel available in Ukrainian, English, and Russian. Language can be changed in Settings.
 - **User Online/Offline Status**: Real-time indicators showing which users are online (green) or offline (gray/semi-transparent). Online users are sorted to the top of the list.
 - **Tab Activity Indicator**: Eye icon shows if user's browser tab is active (green eye) or in background (gray crossed eye).
+- **Notes Indicator**: Amber document icon appears next to user name when admin notes are saved for that contact. Hovering shows the note text as a tooltip.
+- **Edit User Modal**: Pencil button in the sidebar opens a modal to edit user name and admin notes (with validation: name 2-60 chars, notes up to 300 chars). Fully localized in all 3 languages.
+- **Admin Typing Indicator**: Animated dots shown in the widget when admin is typing a reply.
+- **Flashing Tab Title**: When a new message arrives and the admin panel tab is in the background, the browser tab title flashes with "💬 Нове повідомлення!" to attract attention. Stops automatically when the tab becomes active.
 - **Activity Log (System Messages)**: Comprehensive logging of user activity saved to database:
   - 🟢 User connected (opened page with widget)
   - 🔴 User disconnected (closed page)
@@ -69,6 +73,10 @@ The system is also built to be highly extensible, allowing for powerful integrat
 ### Smart Widget
 - **Auto-Open**: The widget automatically expands when an admin sends a reply.
 - **Link Parsing**: URLs in messages are automatically detected and converted into clickable links.
+- **SVG Icons**: Clean SVG send button (arrow) and chat toggle button (speech bubble) instead of text/emoji.
+- **Welcome Messages**: New anonymous users see a personalized greeting ("Вітаємо, Name!") after submitting the name form. Returning users are not greeted again.
+- **Persistent Greeting**: The initial greeting message stays visible even when chat history is loaded.
+- **Session Reset**: When admin deletes an anonymous session, the widget generates a new session ID and shows the name form again (no auto-reconnect loop).
 
 ### Other Features
 - **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.
@@ -549,16 +557,17 @@ chat-server/
 ├── widget.js             # Client-side chat widget
 ├── deploy-webhook.js     # GitHub webhook receiver (port 9000)
 ├── deploy.sh             # Auto-deploy shell script
+├── .env                  # Telegram bot token & chat ID (not in git)
 ├── geo/                  # MaxMind GeoIP databases (optional)
 │   ├── city.mmdb
 │   └── country.mmdb
 ├── admin-panel/
 │   ├── src/
-│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, etc.)
+│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, EditUserModal, etc.)
 │   │   ├── context/      # React Context for state management
 │   │   ├── hooks/        # Custom hooks (useWebSocket)
 │   │   ├── i18n/         # Internationalization (uk.json, en.json, ru.json)
-│   │   ├── utils/        # Utilities (notification sounds)
+│   │   ├── utils/        # Utilities (sounds, titleNotification, dateUtils, linkUtils)
 │   │   ├── App.jsx       # Main application component
 │   │   └── main.jsx      # Entry point
 │   ├── dist/             # Production build (served by server)
@@ -575,7 +584,7 @@ The project supports automatic deployment via GitHub webhooks. When you push to 
 ### How It Works
 
 ```
-git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → done
+git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → pm2 restart → Telegram notification
 ```
 
 ### Server Setup
@@ -618,6 +627,18 @@ git push → GitHub webhook → deploy-webhook.js (port 9000) → deploy.sh → 
 4. **Secret**: Same secret you set in step 1
 5. **Events**: Select "Just the push event"
 6. Click **Add webhook**
+
+### Telegram Notifications
+
+After a successful deploy, the script sends a Telegram message with the commit hash and message. To enable:
+
+1. Create a `.env` file in `~/chat-server/`:
+    ```
+    TELEGRAM_BOT_TOKEN=your_bot_token
+    TELEGRAM_CHAT_ID=your_chat_id
+    ```
+
+2. The `.env` file is loaded automatically by `deploy.sh`. Notifications are optional — if variables are not set, deploy works without them.
 
 ### Deploy Logs
 
