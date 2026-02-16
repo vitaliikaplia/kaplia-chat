@@ -8,31 +8,31 @@ const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const maxmind = require('maxmind');
 
-// Anonymous name generator (deterministic based on sessionId)
-const ANON_ADJECTIVES = [
-    'Невідома', 'Таємнича', 'Хоробра', 'Весела', 'Мудра',
-    'Швидка', 'Тиха', 'Зоряна', 'Лісова', 'Сонячна',
-    'Грайлива', 'Спритна', 'Чарівна', 'Славна', 'Вільна',
-    'Смілива', 'Ніжна', 'Яскрава', 'Дивна', 'Казкова'
-];
-const ANON_ANIMALS = [
-    'Черепаха', 'Панда', 'Лисиця', 'Сова', 'Бджола',
-    'Білка', 'Зірка', 'Жирафа', 'Видра', 'Коала',
-    'Чайка', 'Метелик', 'Ластівка', 'Рись', 'Зебра',
-    'Кішка', 'Хмарка', 'Перлина', 'Квітка', 'Ягідка'
-];
-
-function generateAnonName(sessionId) {
-    let hash = 0;
-    for (let i = 0; i < sessionId.length; i++) {
-        hash = ((hash << 5) - hash) + sessionId.charCodeAt(i);
-        hash = hash & hash; // Convert to 32-bit integer
-    }
-    hash = Math.abs(hash);
-    const adj = ANON_ADJECTIVES[hash % ANON_ADJECTIVES.length];
-    const animal = ANON_ANIMALS[Math.floor(hash / ANON_ADJECTIVES.length) % ANON_ANIMALS.length];
-    return `${adj} ${animal}`;
-}
+// Anonymous name generator (deprecated - widget now asks for name via form)
+// const ANON_ADJECTIVES = [
+//     'Невідома', 'Таємнича', 'Хоробра', 'Весела', 'Мудра',
+//     'Швидка', 'Тиха', 'Зоряна', 'Лісова', 'Сонячна',
+//     'Грайлива', 'Спритна', 'Чарівна', 'Славна', 'Вільна',
+//     'Смілива', 'Ніжна', 'Яскрава', 'Дивна', 'Казкова'
+// ];
+// const ANON_ANIMALS = [
+//     'Черепаха', 'Панда', 'Лисиця', 'Сова', 'Бджола',
+//     'Білка', 'Зірка', 'Жирафа', 'Видра', 'Коала',
+//     'Чайка', 'Метелик', 'Ластівка', 'Рись', 'Зебра',
+//     'Кішка', 'Хмарка', 'Перлина', 'Квітка', 'Ягідка'
+// ];
+//
+// function generateAnonName(sessionId) {
+//     let hash = 0;
+//     for (let i = 0; i < sessionId.length; i++) {
+//         hash = ((hash << 5) - hash) + sessionId.charCodeAt(i);
+//         hash = hash & hash;
+//     }
+//     hash = Math.abs(hash);
+//     const adj = ANON_ADJECTIVES[hash % ANON_ADJECTIVES.length];
+//     const animal = ANON_ANIMALS[Math.floor(hash / ANON_ADJECTIVES.length) % ANON_ANIMALS.length];
+//     return `${adj} ${animal}`;
+// }
 
 const db = new sqlite3.Database('./chat.db', (err) => {
     if (err) console.error('DB Error:', err.message);
@@ -712,16 +712,15 @@ wss.on('connection', (ws, req) => {
     ws.isAnonymous = anonymous;
 
     // For anonymous users, auto-collect session info (GeoIP + UA)
-    // Also populate user_name/user_id/user_email for compatibility with n8n/webhook integrations
+    // user_name will be set by client_info message from widget (name form)
     if (anonymous) {
         const sessionInfo = getSessionInfo(req);
-        const anonName = generateAnonName(userId);
         // Build clean user_session without IP in parentheses (avoids HTML parse errors in Telegram)
         const geoClean = sessionInfo.geo ? sessionInfo.geo.replace(/\s*\([^)]*\)/, '') : '';
         const sessionParts = [geoClean, sessionInfo.platform, sessionInfo.browser].filter(Boolean);
         const meta = {
             user_session: sessionParts.join(', '),
-            user_name: anonName,
+            user_name: 'anonymous',
             user_id: userId.replace(/_/g, '-'),
             user_email: 'anonymous',
             geo: sessionInfo.geo,
@@ -928,9 +927,12 @@ wss.on('connection', (ws, req) => {
             }
 
             if (parsed.type === 'client_info') {
-                clientInfo.set(userId, parsed.metadata);
-                updateSessionInfo(userId, parsed.metadata);
-                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: parsed.metadata }));
+                // Merge with existing metadata (preserves geo/platform/browser for anonymous users)
+                const existing = clientInfo.get(userId) || {};
+                const merged = { ...existing, ...parsed.metadata };
+                clientInfo.set(userId, merged);
+                updateSessionInfo(userId, merged);
+                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: merged }));
             }
             if (parsed.text) {
                 // Validate message

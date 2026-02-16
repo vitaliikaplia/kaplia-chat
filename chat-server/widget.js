@@ -5,6 +5,10 @@
     const lang = config.defaultLanguage || 'en';
     const texts = config.i18n[lang] || config.i18n['en'] || config.i18n['ua'];
 
+    // Name form i18n
+    const nameFormTexts = { ua: 'Введіть ваше імʼя', en: 'Enter your name', ru: 'Введите ваше имя' };
+    const nameFormPlaceholder = nameFormTexts[lang] || nameFormTexts['en'];
+
     const style = document.createElement('style');
     style.innerHTML = `
         #kaplia-widget .kaplia-chat-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #007bff; color: white; border-radius: 50%; border: none; font-size: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99999; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
@@ -35,6 +39,15 @@
         #kaplia-widget .k-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
         #kaplia-widget .k-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes kTypingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+        /* Name form */
+        #kaplia-widget .k-name-form { align-self: flex-start; background: #e9ecef; border-radius: 10px; padding: 12px; display: flex; gap: 8px; align-items: center; max-width: 85%; }
+        #kaplia-widget .k-name-form input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 18px; outline: none; font-size: 14px; font-family: inherit; min-width: 0; }
+        #kaplia-widget .k-name-form input:focus { border-color: #007bff; }
+        #kaplia-widget .k-name-form button { width: 34px; height: 34px; border-radius: 50%; background: #007bff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.2s; }
+        #kaplia-widget .k-name-form button:hover { background: #0056b3; }
+        #kaplia-widget .k-name-form button:disabled { background: #ccc; cursor: default; }
+        #kaplia-widget .k-input-area.k-disabled { opacity: 0.5; pointer-events: none; }
     `;
     document.head.appendChild(style);
 
@@ -46,6 +59,7 @@
     const box = document.getElementById('kChatBox');
     const msgs = document.getElementById('kMsgs');
     const inp = document.getElementById('kInput');
+    const inputArea = document.querySelector('#kaplia-widget .k-input-area');
 
     // Admin typing indicator element
     const typingEl = document.createElement('div');
@@ -66,6 +80,8 @@
     let oldestMsgId = null;
     let isAnonymous = false;
     let anonymousDisconnect = false; // flag to prevent auto-reconnect on intentional close
+    let savedName = localStorage.getItem('kaplia_user_name') || '';
+    const hasMetadata = config.metadata && config.metadata.user_id;
 
     if (config.metadata && config.metadata.user_id) { sessionId = 'auth_' + config.metadata.user_id; localStorage.setItem('kaplia_chat_id', sessionId); }
     else { sessionId = localStorage.getItem('kaplia_chat_id'); if (!sessionId || sessionId.startsWith('auth_')) { sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); } }
@@ -113,6 +129,46 @@
             const now = new Date().toISOString();
             messages.forEach(msg => addMsg(msg, 'support', now, null, true));
         }
+        // Show name form for anonymous users without saved name
+        if (!hasMetadata && !savedName) {
+            showNameForm();
+        }
+    }
+
+    function showNameForm() {
+        // Disable input area
+        inputArea.classList.add('k-disabled');
+
+        const form = document.createElement('div');
+        form.className = 'k-name-form';
+        form.id = 'kNameForm';
+        form.innerHTML = `<input type="text" placeholder="${nameFormPlaceholder}" maxlength="60" id="kNameInput"><button type="button" id="kNameSubmit" disabled><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="white"/></svg></button>`;
+        msgs.insertBefore(form, typingEl);
+        scrollToBottom();
+
+        const nameInput = document.getElementById('kNameInput');
+        const nameSubmit = document.getElementById('kNameSubmit');
+
+        nameInput.oninput = () => {
+            const val = nameInput.value.trim();
+            nameSubmit.disabled = val.length < 2;
+        };
+
+        function submitName() {
+            const name = nameInput.value.trim();
+            if (name.length < 2 || name.length > 60) return;
+            savedName = name;
+            localStorage.setItem('kaplia_user_name', name);
+            form.remove();
+            inputArea.classList.remove('k-disabled');
+            inp.focus();
+            connect();
+        }
+
+        nameSubmit.onclick = submitName;
+        nameInput.onkeypress = (e) => { if (e.key === 'Enter') submitName(); };
+
+        setTimeout(() => nameInput.focus(), 100);
     }
 
     function scrollToBottom() { msgs.scrollTop = msgs.scrollHeight; }
@@ -204,7 +260,12 @@
         anonymousDisconnect = false;
         ws = new WebSocket(`${SERVER_URL}?session=${sessionId}`);
         ws.onopen = () => {
-            if (config.metadata) ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
+            // Send metadata: either from config (authenticated) or with saved name (anonymous)
+            if (config.metadata) {
+                ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
+            } else if (savedName) {
+                ws.send(JSON.stringify({ type: 'client_info', metadata: { user_name: savedName, user_id: sessionId, user_email: 'anonymous' } }));
+            }
             sendTabVisibility();
             sendPageUrl();
             startHeartbeat();
@@ -278,7 +339,7 @@
                     if (el) el.remove();
                 }
 
-                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
+                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); localStorage.removeItem('kaplia_user_name'); savedName = ''; sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
 
                 if (data.type === 'error') {
                     let errorMsg = '';
@@ -311,7 +372,6 @@
 
     // For authenticated users (metadata present) - connect immediately
     // For anonymous users (no metadata) - connect only when chat is opened
-    const hasMetadata = config.metadata && config.metadata.user_id;
     if (hasMetadata) {
         connect();
     }
@@ -336,14 +396,20 @@
         if(isHidden) {
             // For anonymous/no-metadata users: connect WebSocket when chat opens
             if (!hasMetadata) {
-                connect();
+                if (savedName) {
+                    connect();
+                } else {
+                    // Name form is visible, focus on name input
+                    const nameInput = document.getElementById('kNameInput');
+                    if (nameInput) setTimeout(() => nameInput.focus(), 100);
+                }
             } else {
                 // Notify server that chat was opened
                 if (ws && ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({ type: 'chat_opened' }));
                 }
             }
-            setTimeout(() => { inp.focus(); scrollToBottom(); }, 100);
+            setTimeout(() => { if (savedName || hasMetadata) inp.focus(); scrollToBottom(); }, 100);
         } else {
             if (!hasMetadata && isAnonymous) {
                 // Anonymous mode: disconnect WebSocket when chat closes
