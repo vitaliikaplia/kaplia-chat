@@ -930,9 +930,40 @@ wss.on('connection', (ws, req) => {
                 // Merge with existing metadata (preserves geo/platform/browser for anonymous users)
                 const existing = clientInfo.get(userId) || {};
                 const merged = { ...existing, ...parsed.metadata };
+                const isNewAnonymous = ws.isAnonymous && existing.user_name === 'anonymous' && parsed.metadata.user_name && parsed.metadata.user_name !== 'anonymous';
                 clientInfo.set(userId, merged);
                 updateSessionInfo(userId, merged);
                 if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: merged }));
+
+                // Send welcome messages for new anonymous users who just submitted their name
+                if (isNewAnonymous) {
+                    const clientLang = parsed.metadata.lang || 'ua';
+                    const welcomeTexts = { ua: 'Вітаємо', en: 'Hello', ru: 'Здравствуйте' };
+                    const welcomeText = `${welcomeTexts[clientLang] || welcomeTexts['ua']}, ${parsed.metadata.user_name}!`;
+                    const timestamp = new Date().toISOString();
+
+                    // 1. Welcome message for client (shown as support bubble in widget)
+                    saveMessage(userId, 'support', welcomeText, timestamp, (msgId) => {
+                        sendToUserTabs(userId, { text: welcomeText, sender: 'support', timestamp, id: msgId });
+                    });
+
+                    // 2. "New chat" message for admin (shown as client message + webhook)
+                    const adminText = `Новий чат створено: ${parsed.metadata.user_name}`;
+                    saveMessage(userId, 'client', adminText, timestamp, (msgId) => {
+                        const meta = clientInfo.get(userId);
+                        sendWebhook(userId, adminText, meta, timestamp);
+                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                            adminSocket.send(JSON.stringify({
+                                type: 'client_msg',
+                                from: userId,
+                                text: adminText,
+                                info: meta,
+                                timestamp,
+                                id: msgId
+                            }));
+                        }
+                    });
+                }
             }
             if (parsed.text) {
                 // Validate message
