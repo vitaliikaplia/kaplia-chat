@@ -936,32 +936,37 @@ wss.on('connection', (ws, req) => {
                 if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: merged }));
 
                 // Send welcome messages for new anonymous users who just submitted their name
+                // Only if no messages exist yet (truly new chat, not a reconnect)
                 if (isNewAnonymous) {
-                    const clientLang = parsed.metadata.lang || 'ua';
-                    const welcomeTexts = { ua: 'Вітаємо', en: 'Hello', ru: 'Здравствуйте' };
-                    const welcomeText = `${welcomeTexts[clientLang] || welcomeTexts['ua']}, ${parsed.metadata.user_name}!`;
-                    const timestamp = new Date().toISOString();
+                    db.get("SELECT COUNT(*) as count FROM messages WHERE session_id = ? AND sender != 'system'", [userId], (err, row) => {
+                        if (err || (row && row.count > 0)) return; // Already has messages — not a new chat
 
-                    // 1. Welcome message for client (shown as support bubble in widget)
-                    saveMessage(userId, 'support', welcomeText, timestamp, (msgId) => {
-                        sendToUserTabs(userId, { text: welcomeText, sender: 'support', timestamp, id: msgId });
-                    });
+                        const clientLang = parsed.metadata.lang || 'ua';
+                        const welcomeTexts = { ua: 'Вітаємо', en: 'Hello', ru: 'Здравствуйте' };
+                        const welcomeText = `${welcomeTexts[clientLang] || welcomeTexts['ua']}, ${parsed.metadata.user_name}!`;
+                        const timestamp = new Date().toISOString();
 
-                    // 2. "New chat" message for admin (shown as client message + webhook)
-                    const adminText = `Новий чат створено: ${parsed.metadata.user_name}`;
-                    saveMessage(userId, 'client', adminText, timestamp, (msgId) => {
-                        const meta = clientInfo.get(userId);
-                        sendWebhook(userId, adminText, meta, timestamp);
-                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                            adminSocket.send(JSON.stringify({
-                                type: 'client_msg',
-                                from: userId,
-                                text: adminText,
-                                info: meta,
-                                timestamp,
-                                id: msgId
-                            }));
-                        }
+                        // 1. Welcome message for client (shown as support bubble in widget)
+                        saveMessage(userId, 'support', welcomeText, timestamp, (msgId) => {
+                            sendToUserTabs(userId, { text: welcomeText, sender: 'support', timestamp, id: msgId });
+                        });
+
+                        // 2. "New chat" message for admin (shown as client message + webhook)
+                        const adminText = `Новий чат створено: ${parsed.metadata.user_name}`;
+                        saveMessage(userId, 'client', adminText, timestamp, (msgId) => {
+                            const meta = clientInfo.get(userId);
+                            sendWebhook(userId, adminText, meta, timestamp);
+                            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
+                                adminSocket.send(JSON.stringify({
+                                    type: 'client_msg',
+                                    from: userId,
+                                    text: adminText,
+                                    info: meta,
+                                    timestamp,
+                                    id: msgId
+                                }));
+                            }
+                        });
                     });
                 }
             }
