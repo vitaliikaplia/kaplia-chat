@@ -6,6 +6,11 @@ REPO_SUBDIR="chat-server"
 
 cd "$DEPLOY_DIR"
 
+# Load env variables (.env is not in git)
+if [ -f "$DEPLOY_DIR/.env" ]; then
+    export $(grep -v '^#' "$DEPLOY_DIR/.env" | xargs)
+fi
+
 echo "=== Deploy started at $(date) ==="
 
 echo ">> git pull"

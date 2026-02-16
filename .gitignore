@@ -5,6 +5,7 @@
 chat-server/chat.db
 chat-server/data.sqlite
 chat-server/deploy.log
+chat-server/.env
 
 # Node.js dependencies
 node_modules/
