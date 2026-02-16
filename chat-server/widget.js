@@ -271,7 +271,7 @@
         ws = new WebSocket(`${SERVER_URL}?session=${sessionId}`);
         ws.onopen = () => {
             // Send metadata: either from config (authenticated) or with saved name (anonymous)
-            if (config.metadata) {
+            if (hasMetadata) {
                 ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
             } else if (savedName) {
                 ws.send(JSON.stringify({ type: 'client_info', metadata: { user_name: savedName, user_id: sessionId, user_email: 'anonymous' } }));
