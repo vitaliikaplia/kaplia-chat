@@ -81,6 +81,7 @@
     let isAnonymous = false;
     let anonymousDisconnect = false; // flag to prevent auto-reconnect on intentional close
     let savedName = localStorage.getItem('kaplia_user_name') || '';
+    let justSubmittedName = false;
     const hasMetadata = config.metadata && config.metadata.user_id;
 
     if (config.metadata && config.metadata.user_id) { sessionId = 'auth_' + config.metadata.user_id; localStorage.setItem('kaplia_chat_id', sessionId); }
@@ -158,6 +159,7 @@
             const name = nameInput.value.trim();
             if (name.length < 2 || name.length > 60) return;
             savedName = name;
+            justSubmittedName = true;
             localStorage.setItem('kaplia_user_name', name);
             form.remove();
             inputArea.classList.remove('k-disabled');
@@ -305,10 +307,12 @@
                         // No history - show initial messages
                         hasHistory = false;
                         // For anonymous users: reset saved name so form appears again
-                        if (!hasMetadata) {
+                        // (but not right after submitting name form — that's a fresh session)
+                        if (!hasMetadata && !justSubmittedName) {
                             localStorage.removeItem('kaplia_user_name');
                             savedName = '';
                         }
+                        justSubmittedName = false;
                         showInitialMessages();
                     }
                 }
