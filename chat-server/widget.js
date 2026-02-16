@@ -304,6 +304,11 @@
                     } else {
                         // No history - show initial messages
                         hasHistory = false;
+                        // For anonymous users: reset saved name so form appears again
+                        if (!hasMetadata) {
+                            localStorage.removeItem('kaplia_user_name');
+                            savedName = '';
+                        }
                         showInitialMessages();
                     }
                 }
