@@ -643,6 +643,10 @@ wss.on('connection', (ws, req) => {
                                 });
                         }
 
+                        if (data.type === 'admin_typing') {
+                            sendToUserTabs(data.targetId, { type: 'admin_typing', isTyping: data.isTyping });
+                        }
+
                         if (data.type === 'admin_reply') {
                             const timestamp = new Date().toISOString();
                             saveMessage(data.targetId, 'support', data.text, timestamp, (newId) => {

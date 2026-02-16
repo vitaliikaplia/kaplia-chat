@@ -26,6 +26,15 @@
 
         /* Стиль для посилань у віджеті */
         #kaplia-widget .k-msg a { color: inherit; text-decoration: underline; font-weight: bold; }
+
+        /* Admin typing indicator */
+        #kaplia-widget .k-typing { align-self: flex-start; padding: 10px 14px; background: #e9ecef; border-radius: 10px; display: none; }
+        #kaplia-widget .k-typing-dots { display: flex; gap: 4px; align-items: center; }
+        #kaplia-widget .k-typing-dots span { width: 6px; height: 6px; background: #999; border-radius: 50%; animation: kTypingBounce 1.4s infinite ease-in-out both; }
+        #kaplia-widget .k-typing-dots span:nth-child(1) { animation-delay: 0s; }
+        #kaplia-widget .k-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        #kaplia-widget .k-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes kTypingBounce { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
     `;
     document.head.appendChild(style);
 
@@ -37,6 +46,13 @@
     const box = document.getElementById('kChatBox');
     const msgs = document.getElementById('kMsgs');
     const inp = document.getElementById('kInput');
+
+    // Admin typing indicator element
+    const typingEl = document.createElement('div');
+    typingEl.className = 'k-typing';
+    typingEl.innerHTML = '<div class="k-typing-dots"><span></span><span></span><span></span></div>';
+    msgs.appendChild(typingEl);
+
     let ws;
     let hasHistory = false;
     let sessionId;
@@ -88,7 +104,7 @@
         if (!isoString) return;
         const date = new Date(isoString);
         const dateStr = formatDatePHPStyle(date, clientDateFormat);
-        if (dateStr !== lastRenderedDate) { lastRenderedDate = dateStr; const div = document.createElement('div'); div.className = 'k-date-divider'; div.innerText = dateStr; msgs.appendChild(div); }
+        if (dateStr !== lastRenderedDate) { lastRenderedDate = dateStr; const div = document.createElement('div'); div.className = 'k-date-divider'; div.innerText = dateStr; msgs.insertBefore(div, typingEl); }
     }
 
     function showInitialMessages() {
@@ -210,12 +226,14 @@
 
                 if (data.text && !data.type) {
                     addMsg(data.text, data.sender === 'support' ? 'support' : 'system', data.timestamp, data.id);
-                    if (data.sender === 'support') openWidget();
+                    if (data.sender === 'support') { typingEl.style.display = 'none'; openWidget(); }
                 }
 
                 if (data.type === 'sync_message') addMsg(data.text, 'me', data.timestamp, data.id);
                 if (data.type === 'history') {
                     msgs.innerHTML = '';
+                    typingEl.style.display = 'none';
+                    msgs.appendChild(typingEl);
                     lastRenderedDate = null;
                     hasMoreMessages = data.hasMore || false;
                     if (data.messages && data.messages.length > 0) {
@@ -250,12 +268,17 @@
                     }
                 }
 
+                if (data.type === 'admin_typing') {
+                    typingEl.style.display = data.isTyping ? 'block' : 'none';
+                    if (data.isTyping) { msgs.appendChild(typingEl); scrollToBottom(); }
+                }
+
                 if (data.type === 'message_deleted') {
                     const el = document.querySelector(`.k-msg[data-id='${data.msgId}']`);
                     if (el) el.remove();
                 }
 
-                if (data.type === 'reset_chat') { msgs.innerHTML = ''; hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
+                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; localStorage.removeItem('kaplia_chat_id'); sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
 
                 if (data.type === 'error') {
                     let errorMsg = '';
@@ -362,7 +385,7 @@
         const formattedText = formatTextWithLinks(text);
 
         div.innerHTML = `${formattedText} <span class="k-time">${timeStr}</span>`;
-        msgs.appendChild(div);
+        msgs.insertBefore(div, typingEl);
         scrollToBottom();
     }
 })();

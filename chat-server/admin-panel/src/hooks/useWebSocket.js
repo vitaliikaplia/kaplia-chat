@@ -460,6 +460,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_message_limits', adminMessagesLimit, widgetMessagesLimit });
   }, [send]);
 
+  const sendAdminTyping = useCallback((targetId, isTyping) => {
+    send({ type: 'admin_typing', targetId, isTyping });
+  }, [send]);
+
   const disconnect = useCallback(() => {
     isManualDisconnectRef.current = true;
     passwordRef.current = null;
@@ -515,5 +519,6 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateAnonymousOrigins,
     updateRateLimit,
     updateMessageLimits,
+    sendAdminTyping,
   };
 }

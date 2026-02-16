@@ -60,6 +60,7 @@ function AppContent() {
     updateAnonymousOrigins,
     updateRateLimit,
     updateMessageLimits,
+    sendAdminTyping,
   } = useWebSocket(handleSystemMessage, soundEnabled);
 
   const handleSoundEnabledChange = (enabled) => {
@@ -269,6 +270,7 @@ function AppContent() {
           onDeleteSystemMessages={handleDeleteSystemMessages}
           onOpenSidebar={() => setSidebarOpen(true)}
           sidebarOpen={sidebarOpen}
+          onAdminTyping={sendAdminTyping}
         />
       </div>
 

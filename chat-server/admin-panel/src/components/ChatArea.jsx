@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useTranslation } from '../i18n';
 import { Message } from './Message';
 import { SystemMessage } from './SystemMessage';
 import { isDifferentDay, getDateDivider } from '../utils/dateUtils';
 
-export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteSystemMessages, onOpenSidebar, sidebarOpen }) {
+export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteSystemMessages, onOpenSidebar, sidebarOpen, onAdminTyping }) {
   const { state } = useChat();
   const { t } = useTranslation();
   const { activeUserId, messages, usersInfo, typingText, config, hasMoreMessages, loadingMoreMessages } = state;
@@ -17,6 +17,15 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
   const scrollHeightBeforeLoadRef = useRef(0);
   const isPrependingRef = useRef(false);
 
+  const adminTypingRef = useRef(false);
+
+  const setAdminTyping = useCallback((isTyping) => {
+    if (adminTypingRef.current !== isTyping && activeUserId && onAdminTyping) {
+      adminTypingRef.current = isTyping;
+      onAdminTyping(activeUserId, isTyping);
+    }
+  }, [activeUserId, onAdminTyping]);
+
   const userInfo = activeUserId ? usersInfo[activeUserId] : null;
   const userName = userInfo?.user_name || userInfo?.name || t('chat.guest');
   const userEmail = userInfo?.user_email || userInfo?.email || '';
@@ -25,6 +34,8 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
   useEffect(() => {
     isInitialLoadRef.current = true;
     prevMessagesLengthRef.current = 0;
+    // Stop typing for previous user
+    adminTypingRef.current = false;
   }, [activeUserId]);
 
   // Auto-scroll to bottom on initial load or new messages at end
@@ -99,6 +110,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
 
     onSendMessage(activeUserId, inputText.trim());
     setInputText('');
+    setAdminTyping(false);
   };
 
   const handleKeyDown = (e) => {
@@ -275,7 +287,7 @@ export function ChatArea({ onSendMessage, onDeleteMessage, onLoadMore, onDeleteS
           <input
             type="text"
             value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
+            onChange={(e) => { setInputText(e.target.value); setAdminTyping(e.target.value.length > 0); }}
             onKeyDown={handleKeyDown}
             placeholder={t('chat.inputPlaceholder')}
             className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
