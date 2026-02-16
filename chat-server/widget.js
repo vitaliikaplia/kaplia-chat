@@ -358,7 +358,15 @@
                     if (el) el.remove();
                 }
 
-                if (data.type === 'reset_chat') { msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl); hasHistory = false; lastRenderedDate = null; initialMessagesShown = false; localStorage.removeItem('kaplia_chat_id'); localStorage.removeItem('kaplia_user_name'); savedName = ''; sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId); showInitialMessages(); }
+                if (data.type === 'reset_chat') {
+                    msgs.innerHTML = ''; typingEl.style.display = 'none'; msgs.appendChild(typingEl);
+                    hasHistory = false; lastRenderedDate = null; initialMessagesShown = false;
+                    localStorage.removeItem('kaplia_chat_id'); localStorage.removeItem('kaplia_user_name'); savedName = '';
+                    sessionId = 'guest_' + Math.random().toString(36).substr(2, 9); localStorage.setItem('kaplia_chat_id', sessionId);
+                    // Prevent auto-reconnect — user must enter name first (for anonymous)
+                    if (!hasMetadata) { anonymousDisconnect = true; }
+                    showInitialMessages();
+                }
 
                 if (data.type === 'error') {
                     let errorMsg = '';
