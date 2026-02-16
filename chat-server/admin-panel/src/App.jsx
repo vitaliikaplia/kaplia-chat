@@ -61,6 +61,7 @@ function AppContent() {
     updateRateLimit,
     updateMessageLimits,
     sendAdminTyping,
+    updateUserInfoFromAdmin,
   } = useWebSocket(handleSystemMessage, soundEnabled);
 
   const handleSoundEnabledChange = (enabled) => {
@@ -256,6 +257,7 @@ function AppContent() {
         <Sidebar
           onSelectUser={handleSelectUser}
           onDeleteUser={handleDeleteUser}
+          onEditUser={updateUserInfoFromAdmin}
           onOpenSettings={handleOpenSettings}
           onLogout={handleLogout}
         />

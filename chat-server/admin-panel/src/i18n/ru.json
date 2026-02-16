@@ -29,8 +29,18 @@
     "tabBackground": "Вкладка в фоне",
     "copyId": "Нажмите для копирования",
     "deleteChat": "Удалить чат",
+    "editUser": "Редактировать",
     "settings": "Настройки",
     "logout": "Выйти"
+  },
+  "editUser": {
+    "title": "Редактирование пользователя",
+    "name": "Имя",
+    "namePlaceholder": "Введите имя",
+    "notes": "Заметки",
+    "notesPlaceholder": "Заметки о пользователе...",
+    "save": "Сохранить",
+    "cancel": "Отмена"
   },
   "chat": {
     "guest": "Гость",

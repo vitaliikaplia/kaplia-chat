@@ -29,8 +29,18 @@
     "tabBackground": "Tab in background",
     "copyId": "Click to copy",
     "deleteChat": "Delete chat",
+    "editUser": "Edit",
     "settings": "Settings",
     "logout": "Logout"
+  },
+  "editUser": {
+    "title": "Edit user",
+    "name": "Name",
+    "namePlaceholder": "Enter name",
+    "notes": "Notes",
+    "notesPlaceholder": "Notes about user...",
+    "save": "Save",
+    "cancel": "Cancel"
   },
   "chat": {
     "guest": "Guest",

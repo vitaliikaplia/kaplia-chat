@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useTranslation } from '../i18n';
 import { ConfirmModal } from './ConfirmModal';
+import { EditUserModal } from './EditUserModal';
 
 export function Sidebar({
   onSelectUser,
   onDeleteUser,
+  onEditUser,
   onOpenSettings,
   onLogout
 }) {
@@ -13,6 +15,7 @@ export function Sidebar({
   const { t } = useTranslation();
   const { users, usersInfo, activeUserId, notifications, onlineUsers, tabActiveUsers } = state;
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [editUserId, setEditUserId] = useState(null);
 
   // Sort users: online first, then offline
   const sortedUsers = useMemo(() => {
@@ -142,6 +145,20 @@ export function Sidebar({
                     </div>
                   </div>
 
+                  {/* Edit button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditUserId(userId);
+                    }}
+                    className="p-1 text-gray-400 hover:text-green-500 hover:bg-green-50 rounded transition"
+                    title={t('sidebar.editUser')}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+
                   {/* Delete button */}
                   <button
                     onClick={(e) => {
@@ -172,6 +189,15 @@ export function Sidebar({
         confirmText={t('confirm.delete')}
         cancelText={t('confirm.cancel')}
         danger
+      />
+
+      {/* Edit user modal */}
+      <EditUserModal
+        isOpen={!!editUserId}
+        onClose={() => setEditUserId(null)}
+        userId={editUserId}
+        userInfo={editUserId ? usersInfo[editUserId] : null}
+        onSave={onEditUser}
       />
     </aside>
   );

@@ -468,6 +468,11 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'admin_typing', targetId, isTyping });
   }, [send]);
 
+  const updateUserInfoFromAdmin = useCallback((targetId, userName, adminNotes) => {
+    send({ type: 'admin_update_user', targetId, userName, adminNotes });
+    updateUserInfo(targetId, { user_name: userName, admin_notes: adminNotes });
+  }, [send, updateUserInfo]);
+
   const disconnect = useCallback(() => {
     isManualDisconnectRef.current = true;
     passwordRef.current = null;
@@ -524,5 +529,6 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateRateLimit,
     updateMessageLimits,
     sendAdminTyping,
+    updateUserInfoFromAdmin,
   };
 }

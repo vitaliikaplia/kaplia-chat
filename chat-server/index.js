@@ -647,6 +647,14 @@ wss.on('connection', (ws, req) => {
                             sendToUserTabs(data.targetId, { type: 'admin_typing', isTyping: data.isTyping });
                         }
 
+                        if (data.type === 'admin_update_user') {
+                            const existing = clientInfo.get(data.targetId) || {};
+                            const merged = { ...existing, user_name: data.userName, admin_notes: data.adminNotes };
+                            clientInfo.set(data.targetId, merged);
+                            updateSessionInfo(data.targetId, merged);
+                            ws.send(JSON.stringify({ type: 'system', text: 'Збережено!' }));
+                        }
+
                         if (data.type === 'admin_reply') {
                             const timestamp = new Date().toISOString();
                             saveMessage(data.targetId, 'support', data.text, timestamp, (newId) => {
