@@ -242,7 +242,14 @@ app.use(express.static(adminBuildPath, { index: false }));
 
 const clients = new Map();
 const clientInfo = new Map();
-let adminSocket = null;
+function broadcastToAdmins(data, excludeWs = null) {
+    const msg = JSON.stringify(data);
+    wss.clients.forEach(client => {
+        if (client.isAdmin && client.readyState === WebSocket.OPEN && client !== excludeWs) {
+            client.send(msg);
+        }
+    });
+}
 
 // Track pending disconnects for page navigation detection
 const pendingDisconnects = new Map(); // userId -> timeoutId
@@ -418,9 +425,7 @@ const handleApiMessageSend = (targetId, message, res) => {
     const timestamp = new Date().toISOString();
     saveMessage(targetId, 'support', message, timestamp, (newId) => {
         sendToUserTabs(targetId, { text: message, sender: 'support', timestamp: timestamp, id: newId });
-        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-            adminSocket.send(JSON.stringify({ type: 'api_msg_sent', targetId: targetId, text: message, timestamp: timestamp, id: newId }));
-        }
+        broadcastToAdmins({ type: 'api_msg_sent', targetId: targetId, text: message, timestamp: timestamp, id: newId });
         res.json({ status: 'success', sent_to: targetId, message: message, id: newId });
     });
 };
@@ -487,7 +492,6 @@ wss.on('connection', (ws, req) => {
         db.get("SELECT * FROM admins WHERE username = ?", ['admin'], (err, row) => {
             if (row && bcrypt.compareSync(authPass, row.password_hash)) {
                 console.log('Admin connected');
-                adminSocket = ws;
                 ws.isAdmin = true;
 
                 ws.send(JSON.stringify({
@@ -673,21 +677,21 @@ wss.on('connection', (ws, req) => {
                             clientInfo.set(data.targetId, merged);
                             updateSessionInfo(data.targetId, merged);
                             ws.send(JSON.stringify({ type: 'system', text: 'Збережено!' }));
+                            broadcastToAdmins({ type: 'user_info_update', id: data.targetId, info: { user_name: data.userName, admin_notes: data.adminNotes } }, ws);
                         }
 
                         if (data.type === 'admin_reply') {
                             const timestamp = new Date().toISOString();
                             saveMessage(data.targetId, 'support', data.text, timestamp, (newId) => {
                                 sendToUserTabs(data.targetId, { text: data.text, sender: 'support', timestamp: timestamp, id: newId });
-                                // Send confirmation back to admin
-                                ws.send(JSON.stringify({ type: 'admin_msg_sent', targetId: data.targetId, text: data.text, timestamp: timestamp, id: newId }));
+                                broadcastToAdmins({ type: 'admin_msg_sent', targetId: data.targetId, text: data.text, timestamp: timestamp, id: newId });
                             });
                         }
 
                         if (data.type === 'delete_message') {
                             db.run("DELETE FROM messages WHERE id = ?", [data.msgId], (err) => {
                                 if (!err) {
-                                    ws.send(JSON.stringify({ type: 'message_deleted', msgId: data.msgId }));
+                                    broadcastToAdmins({ type: 'message_deleted', msgId: data.msgId });
                                     sendToUserTabs(data.targetId, { type: 'message_deleted', msgId: data.msgId });
                                 }
                             });
@@ -697,7 +701,7 @@ wss.on('connection', (ws, req) => {
                             const targetId = data.targetId;
                             db.run("DELETE FROM messages WHERE session_id = ? AND sender = 'system'", [targetId], function(err) {
                                 if (!err) {
-                                    ws.send(JSON.stringify({ type: 'system_messages_deleted', targetId: targetId, count: this.changes }));
+                                    broadcastToAdmins({ type: 'system_messages_deleted', targetId: targetId, count: this.changes });
                                     ws.send(JSON.stringify({ type: 'system', text: `Видалено ${this.changes} системних повідомлень` }));
                                 }
                             });
@@ -709,7 +713,7 @@ wss.on('connection', (ws, req) => {
                                 db.run("DELETE FROM messages WHERE session_id = ?", [targetId]);
                                 db.run("DELETE FROM sessions WHERE session_id = ?", [targetId], (err) => {
                                     if (!err) {
-                                        ws.send(JSON.stringify({ type: 'session_deleted', id: targetId }));
+                                        broadcastToAdmins({ type: 'session_deleted', id: targetId });
                                         wss.clients.forEach(client => {
                                             if (client.userId === targetId) {
                                                 if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ type: 'reset_chat' }));
@@ -786,7 +790,7 @@ wss.on('connection', (ws, req) => {
                         }
                     } catch (e) { console.error(e); }
                 });
-                ws.on('close', () => { adminSocket = null; });
+                ws.on('close', () => { console.log('Admin disconnected'); });
             } else { ws.close(); }
         });
         return;
@@ -822,9 +826,7 @@ wss.on('connection', (ws, req) => {
         };
         clientInfo.set(userId, meta);
         updateSessionInfo(userId, meta);
-        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-            adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: meta }));
-        }
+        broadcastToAdmins({ type: 'user_info_update', id: userId, info: meta });
     }
 
     // Check if this is a reconnect after page navigation
@@ -835,22 +837,16 @@ wss.on('connection', (ws, req) => {
         pendingDisconnects.delete(userId);
         // Don't log user_connected since they were never really "disconnected"
         // Just notify admin that user is still online (for UI state)
-        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-            adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId }));
-        }
+        broadcastToAdmins({ type: 'user_connected', id: userId });
     } else {
         // This is a fresh connection - save and notify (with deduplication)
         if (!shouldDeduplicateEvent(userId, 'user_connected')) {
             saveSystemEvent(userId, 'user_connected', (msgId, timestamp) => {
-                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                    adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId, msgId, timestamp }));
-                }
+                broadcastToAdmins({ type: 'user_connected', id: userId, msgId, timestamp });
             });
         } else {
             // Still notify admin for UI, but don't save to DB
-            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                adminSocket.send(JSON.stringify({ type: 'user_connected', id: userId }));
-            }
+            broadcastToAdmins({ type: 'user_connected', id: userId });
         }
     }
 
@@ -910,8 +906,8 @@ wss.on('connection', (ws, req) => {
             }
 
             if (parsed.type === 'typing_update') {
-                if (realtimeTypingEnabled && adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                    adminSocket.send(JSON.stringify({ type: 'client_typing', userId: userId, text: parsed.text }));
+                if (realtimeTypingEnabled) {
+                    broadcastToAdmins({ type: 'client_typing', userId: userId, text: parsed.text });
                 }
                 return;
             }
@@ -921,9 +917,7 @@ wss.on('connection', (ws, req) => {
                 ws.tabActive = parsed.isActive;
 
                 // Always update UI state immediately
-                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                    adminSocket.send(JSON.stringify({ type: 'tab_visibility', userId: userId, isActive: parsed.isActive }));
-                }
+                broadcastToAdmins({ type: 'tab_visibility', userId: userId, isActive: parsed.isActive });
 
                 // Skip logging if this is part of page navigation
                 const recentVisit = recentPageVisits.get(userId);
@@ -951,9 +945,7 @@ wss.on('connection', (ws, req) => {
                         return;
                     }
                     saveSystemEvent(userId, eventType, (msgId, timestamp) => {
-                        if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                            adminSocket.send(JSON.stringify({ type: 'system_event', userId: userId, eventType, msgId, timestamp }));
-                        }
+                        broadcastToAdmins({ type: 'system_event', userId: userId, eventType, msgId, timestamp });
                     });
                 }, TAB_VISIBILITY_DELAY);
 
@@ -963,9 +955,7 @@ wss.on('connection', (ws, req) => {
 
             if (parsed.type === 'chat_opened' || parsed.type === 'chat_closed') {
                 saveSystemEvent(userId, parsed.type, (msgId, timestamp) => {
-                    if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                        adminSocket.send(JSON.stringify({ type: parsed.type, userId: userId, msgId, timestamp }));
-                    }
+                    broadcastToAdmins({ type: parsed.type, userId: userId, msgId, timestamp });
                 });
                 return;
             }
@@ -995,25 +985,11 @@ wss.on('connection', (ws, req) => {
                 updateSessionInfo(userId, currentMeta);
 
                 // Always notify admin about URL change (for sidebar display)
-                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                    adminSocket.send(JSON.stringify({
-                        type: 'user_info_update',
-                        id: userId,
-                        info: { current_url: url }
-                    }));
-                }
+                broadcastToAdmins({ type: 'user_info_update', id: userId, info: { current_url: url } });
 
                 // Save as system event with URL in text (respects systemLogs settings)
                 saveSystemEvent(userId, `page_visit:${url}`, (msgId, timestamp) => {
-                    if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                        adminSocket.send(JSON.stringify({
-                            type: 'page_visit',
-                            userId: userId,
-                            url: url,
-                            msgId,
-                            timestamp
-                        }));
-                    }
+                    broadcastToAdmins({ type: 'page_visit', userId: userId, url: url, msgId, timestamp });
                 });
                 return;
             }
@@ -1025,7 +1001,7 @@ wss.on('connection', (ws, req) => {
                 const isNewAnonymous = ws.isAnonymous && existing.user_name === 'anonymous' && parsed.metadata.user_name && parsed.metadata.user_name !== 'anonymous';
                 clientInfo.set(userId, merged);
                 updateSessionInfo(userId, merged);
-                if (adminSocket && adminSocket.readyState === WebSocket.OPEN) adminSocket.send(JSON.stringify({ type: 'user_info_update', id: userId, info: merged }));
+                broadcastToAdmins({ type: 'user_info_update', id: userId, info: merged });
 
                 // Send welcome messages for new anonymous users who just submitted their name
                 // Only if no messages exist yet (truly new chat, not a reconnect)
@@ -1048,16 +1024,7 @@ wss.on('connection', (ws, req) => {
                         saveMessage(userId, 'client', adminText, timestamp, (msgId) => {
                             const meta = clientInfo.get(userId);
                             sendWebhook(userId, adminText, meta, timestamp);
-                            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                                adminSocket.send(JSON.stringify({
-                                    type: 'client_msg',
-                                    from: userId,
-                                    text: adminText,
-                                    info: meta,
-                                    timestamp,
-                                    id: msgId
-                                }));
-                            }
+                            broadcastToAdmins({ type: 'client_msg', from: userId, text: adminText, info: meta, timestamp, id: msgId });
                         });
                     });
                 }
@@ -1081,16 +1048,7 @@ wss.on('connection', (ws, req) => {
                     const meta = clientInfo.get(userId);
                     sendWebhook(userId, parsed.text, meta, timestamp);
 
-                    if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                        adminSocket.send(JSON.stringify({
-                            type: 'client_msg',
-                            from: userId,
-                            text: parsed.text,
-                            info: meta,
-                            timestamp: timestamp,
-                            id: newId
-                        }));
-                    }
+                    broadcastToAdmins({ type: 'client_msg', from: userId, text: parsed.text, info: meta, timestamp: timestamp, id: newId });
 
                     wss.clients.forEach(client => {
                         if (client.userId === userId && client !== ws && client.readyState === WebSocket.OPEN) {
@@ -1122,9 +1080,7 @@ wss.on('connection', (ws, req) => {
                     // Skip if same event was logged recently
                     if (!shouldDeduplicateEvent(userId, 'user_left')) {
                         saveSystemEvent(userId, 'user_left', (msgId, timestamp) => {
-                            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                                adminSocket.send(JSON.stringify({ type: 'user_left', id: userId, msgId, timestamp }));
-                            }
+                            broadcastToAdmins({ type: 'user_left', id: userId, msgId, timestamp });
                         });
                     }
                 }
@@ -1132,9 +1088,7 @@ wss.on('connection', (ws, req) => {
             pendingDisconnects.set(userId, timeoutId);
 
             // Notify admin immediately about offline status (for UI), but don't save to DB yet
-            if (adminSocket && adminSocket.readyState === WebSocket.OPEN) {
-                adminSocket.send(JSON.stringify({ type: 'user_left', id: userId }));
-            }
+            broadcastToAdmins({ type: 'user_left', id: userId });
         }
     });
 });
