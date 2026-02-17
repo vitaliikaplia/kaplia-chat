@@ -7,7 +7,7 @@ Self-hosted live chat widget with WebSocket communication. Includes:
 - **Admin Panel** (`chat-server/admin-panel/`) - React (Vite) dashboard for support agents
 
 ## Tech Stack
-- **Backend**: Node.js, Express, `ws` (WebSocket), `sqlite3`, `maxmind` (GeoIP)
+- **Backend**: Node.js, Express, `ws` (WebSocket), `sqlite3`, `maxmind` (GeoIP), `nodemailer` (SMTP email)
 - **Frontend (Admin)**: React 19, Vite, Tailwind CSS
 - **Database**: SQLite (`chat-server/chat.db`)
 
@@ -40,7 +40,7 @@ kaplia-chat/
 │   │   └── country.mmdb
 │   └── admin-panel/
 │       ├── src/
-│       │   ├── components/   # React components (EditUserModal, Sidebar, ChatArea, WidgetConfigurator, etc.)
+│       │   ├── components/   # React components (EditUserModal, Sidebar, ChatArea, OptionsModal, WidgetConfigurator, etc.)
 │       │   ├── context/      # ChatContext (global state)
 │       │   ├── hooks/        # useWebSocket hook
 │       │   ├── i18n/         # Internationalization (uk, en, ru)
@@ -76,6 +76,7 @@ kaplia-chat/
 
 ### Database Tables
 - `config` - Key-value settings (password, token, webhook, rate limits, etc.)
+- `admins` - Admin accounts (username, password_hash, business_hours JSON, smtp_config JSON)
 - `sessions` - User sessions with metadata (includes `current_url` for page tracking)
 - `messages` - Chat messages (sender: 'client' | 'support' | 'system')
   - System messages have `text` like: `user_connected`, `user_left`, `tab_active`, `tab_inactive`, `chat_opened`, `chat_closed`, `page_visit:URL`
@@ -93,6 +94,7 @@ kaplia-chat/
 - `ChatArea` - Message list with pagination, input area, typing indicator
 - `Modal` - Base modal wrapper (sizes: sm, md, lg, xl)
 - `ConfirmModal` - Delete confirmation dialogs
+- `OptionsModal` - Consolidated settings modal with tabs (Password, Token, Webhook, Time, Sound, Messages, Spam, Schedule, SMTP, Other, Widget)
 - `WidgetConfigurator` - Widget code snippet generator (visual settings, i18n, metadata, localStorage-based)
 
 ### Key Utils
@@ -152,6 +154,14 @@ Server uses delayed logging to distinguish page navigation from real events:
 - Last message preview in sidebar (like Telegram/WhatsApp) with time + "You:" prefix
 - Browser push notifications (native Notification API, click opens chat, toggle in settings)
 - Widget configurator tab in settings (visual config, i18n, metadata, live code snippet, localStorage)
+- Multiple simultaneous admin connections (all admin tabs/devices receive real-time updates)
+- Business hours settings (per-day schedule with enabled/disabled toggle and time ranges)
+- SMTP settings tab (host, port, user, password, from name, SSL/TLS toggle, test email with custom recipient)
+- Offline contact form in widget (shown outside business hours: name, email, phone, message → email via SMTP)
+- Notification emails config in Schedule tab (one email per line, used for offline form submissions)
+- REST endpoints: `GET /api/business-hours` (public), `POST /api/contact-form` (public, sends email via nodemailer)
+- Widget fetches business hours via REST on load (before WS connection, critical for anonymous users)
+- `isBusinessOffline()` — client-side check using server timezone offset
 
 ## Auto-Deploy
 ```

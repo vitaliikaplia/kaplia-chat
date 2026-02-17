@@ -50,7 +50,8 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
 - **Clear Activity Log**: One-click button to delete all system messages from a chat.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
-- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS, Anonymous domains, Widget) in one modal with tabs.
+- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, Schedule, SMTP, CORS, Anonymous domains, Widget) in one modal with tabs.
+- **Multiple Admin Connections**: Multiple admins (or admin tabs/devices) can be connected simultaneously. All receive real-time message updates, typing indicators, and user list changes.
 - **Search**: Search chats by user name, email, or message text with debounced input and loading animation.
 - **Last Message Preview**: Shows last message text and time under each contact name in the sidebar (like Telegram/WhatsApp), with "You:" prefix for admin messages.
 - **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
@@ -59,6 +60,9 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Remember Me**: Option to stay logged in across browser sessions.
 - **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background). No duplicate "login successful" notifications on reconnect.
 - **Toast Notifications**: Visual feedback for all actions (save, copy, errors, etc.).
+- **Business Hours (Schedule)**: Configure working days and hours per day with enabled/disabled toggle and time ranges (00:00–23:30 in 30-min increments). Used by the widget to determine when to show the offline contact form.
+- **SMTP Settings**: Configure outgoing email (host, port, user, password, from name, SSL/TLS toggle). Includes a test email feature with a custom recipient address. Used for offline contact form submissions.
+- **Notification Emails**: Configure recipient email addresses in the Schedule tab (one per line). When a visitor submits the offline contact form, emails are sent to these addresses via SMTP.
 
 ### Spam Protection
 - **Rate Limiting**: Configure maximum messages per minute per user (default: 20).
@@ -81,6 +85,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Welcome Messages**: New anonymous users see a personalized greeting ("Вітаємо, Name!") after submitting the name form. Returning users are not greeted again.
 - **Persistent Greeting**: The initial greeting message stays visible even when chat history is loaded.
 - **Session Reset**: When admin deletes an anonymous session, the widget generates a new session ID and shows the name form again (no auto-reconnect loop).
+- **Offline Contact Form**: When the chat is opened outside business hours, the widget shows an offline banner and a contact form (name, email, phone, message) instead of the regular chat. On submit, the form data is sent to the server via REST API, which emails it to the configured notification addresses via SMTP. Fully localized (Ukrainian, English, Russian).
 
 ### Other Features
 - **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.
@@ -203,7 +208,7 @@ Configure Nginx to handle SSL and forward traffic, including WebSocket connectio
 2.  **Initialize the project and install dependencies**:
     ```bash
     npm init -y
-    npm install ws express sqlite3 bcryptjs maxmind
+    npm install ws express sqlite3 bcryptjs maxmind nodemailer
     ```
 
 3.  **Add GeoIP databases** (optional, for anonymous user geolocation):
@@ -521,6 +526,54 @@ sendMessage('user_k92lx8', 'Hello from the JS console!');
     }
     ```
 
+### Public Endpoints (No Authentication)
+
+These endpoints are used by the chat widget and do not require an API token.
+
+#### Get Business Hours
+
+Returns the configured business hours schedule and server timezone. Used by the widget to determine if the offline contact form should be shown.
+
+-   **Endpoint**: `GET /api/business-hours`
+-   **CORS**: Only allowed from configured origins
+
+**Response (200 OK)**:
+```json
+{
+    "businessHours": {
+        "mon": { "enabled": true, "from": "09:00", "to": "18:00" },
+        "tue": { "enabled": true, "from": "09:00", "to": "18:00" },
+        "sat": { "enabled": false, "from": "09:00", "to": "18:00" }
+    },
+    "timezone": 2
+}
+```
+
+#### Submit Contact Form
+
+Submits an offline contact form. The server validates the data and sends an email via SMTP to the configured notification addresses.
+
+-   **Endpoint**: `POST /api/contact-form`
+-   **Content-Type**: `application/json`
+-   **CORS**: Only allowed from configured origins
+
+**Request Body**:
+```json
+{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "phone": "+1234567890",
+    "message": "I have a question about your product.",
+    "lang": "en"
+}
+```
+
+**Responses**:
+-   **Success (200)**: `{ "status": "success" }`
+-   **Validation Error (400)**: `{ "error": "invalid_data" }`
+-   **SMTP Not Configured (500)**: `{ "error": "smtp_not_configured" }`
+-   **No Recipients (500)**: `{ "error": "no_notification_emails" }`
+
 ---
 
 ## Admin Panel Development
@@ -567,7 +620,7 @@ chat-server/
 │   └── country.mmdb
 ├── admin-panel/
 │   ├── src/
-│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, EditUserModal, WidgetConfigurator, etc.)
+│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, EditUserModal, OptionsModal, WidgetConfigurator, etc.)
 │   │   ├── context/      # React Context for state management
 │   │   ├── hooks/        # Custom hooks (useWebSocket)
 │   │   ├── i18n/         # Internationalization (uk.json, en.json, ru.json)
