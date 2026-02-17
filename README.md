@@ -50,8 +50,12 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
 - **Clear Activity Log**: One-click button to delete all system messages from a chat.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
-- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS, Anonymous domains) in one modal with tabs.
+- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, CORS, Anonymous domains, Widget) in one modal with tabs.
+- **Search**: Search chats by user name, email, or message text with debounced input and loading animation.
+- **Last Message Preview**: Shows last message text and time under each contact name in the sidebar (like Telegram/WhatsApp), with "You:" prefix for admin messages.
 - **Sound Notifications**: 10 different notification sounds to choose from (Chime, Pop, Ding, Bubble, Magic, Xylophone, Water Drop, Bell, Whistle, Coin). Each sound can be previewed before selection.
+- **Browser Notifications**: Native browser push notifications when new messages arrive while the admin tab is in the background. Click on notification focuses the window and opens the relevant chat.
+- **Widget Configurator**: Built-in visual configurator for the chat widget in the Settings panel. Configure anonymous mode, default language, theme color, position, offsets, i18n texts, metadata template, and get a ready-to-use code snippet with copy button. Config is saved in localStorage.
 - **Remember Me**: Option to stay logged in across browser sessions.
 - **Auto-Reconnect**: Automatically reconnects when connection is lost (e.g., when browser tab is in background). No duplicate "login successful" notifications on reconnect.
 - **Toast Notifications**: Visual feedback for all actions (save, copy, errors, etc.).
@@ -563,11 +567,11 @@ chat-server/
 │   └── country.mmdb
 ├── admin-panel/
 │   ├── src/
-│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, EditUserModal, etc.)
+│   │   ├── components/   # React components (Modal, Sidebar, ChatArea, EditUserModal, WidgetConfigurator, etc.)
 │   │   ├── context/      # React Context for state management
 │   │   ├── hooks/        # Custom hooks (useWebSocket)
 │   │   ├── i18n/         # Internationalization (uk.json, en.json, ru.json)
-│   │   ├── utils/        # Utilities (sounds, titleNotification, dateUtils, linkUtils)
+│   │   ├── utils/        # Utilities (sounds, titleNotification, browserNotification, dateUtils, linkUtils)
 │   │   ├── App.jsx       # Main application component
 │   │   └── main.jsx      # Entry point
 │   ├── dist/             # Production build (served by server)

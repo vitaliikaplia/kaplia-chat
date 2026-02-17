@@ -40,11 +40,11 @@ kaplia-chat/
 │   │   └── country.mmdb
 │   └── admin-panel/
 │       ├── src/
-│       │   ├── components/   # React components (EditUserModal, Sidebar, ChatArea, etc.)
+│       │   ├── components/   # React components (EditUserModal, Sidebar, ChatArea, WidgetConfigurator, etc.)
 │       │   ├── context/      # ChatContext (global state)
 │       │   ├── hooks/        # useWebSocket hook
 │       │   ├── i18n/         # Internationalization (uk, en, ru)
-│       │   └── utils/        # dateUtils, linkUtils, notificationSound, titleNotification
+│       │   └── utils/        # dateUtils, linkUtils, notificationSound, titleNotification, browserNotification
 │       └── dist/             # Production build (served by server)
 ├── chat-client/
 │   └── chat.html             # Example client integration
@@ -58,7 +58,7 @@ kaplia-chat/
 - `auth_success` - Admin authenticated, returns config
 - `client_msg` - Message from website visitor
 - `admin_reply` - Reply from admin to client
-- `user_list` - List of active sessions
+- `user_list` - List of active sessions (includes lastMessage per session)
 - `client_typing` - Real-time typing preview (spy mode)
 - `admin_typing` - Admin is typing indicator (animated dots in widget)
 - `history_data` - Chat history for session
@@ -72,6 +72,7 @@ kaplia-chat/
 - `page_visit` - User navigated to a page (includes URL)
 - `admin_update_user` - Admin edits user name/notes (saves to clientInfo + SQLite)
 - `reset_chat` - Admin deleted session, widget resets (new sessionId for anonymous)
+- `search_chats` / `search_results` - Search by name, email, message text (debounced, min 2 chars)
 
 ### Database Tables
 - `config` - Key-value settings (password, token, webhook, rate limits, etc.)
@@ -83,19 +84,21 @@ kaplia-chat/
 - `ChatContext` - Global state (users, messages, config, activeUserId, onlineUsers, tabActiveUsers)
 - `useWebSocket` - WebSocket connection, auto-reconnect, sound notifications, `updateUserInfoFromAdmin()`
 - `I18nProvider` - Internationalization context (uk, en, ru languages)
-- Settings stored in `localStorage`: `kaplia_admin_pass`, `kaplia_sound_enabled`, `kaplia_sound_type`
+- Settings stored in `localStorage`: `kaplia_admin_pass`, `kaplia_sound_enabled`, `kaplia_sound_type`, `kaplia_notifications_enabled`, `kaplia_widget_config`
 - Language stored in database (`admin_language` column in config table)
 
 ### Key Admin Components
 - `EditUserModal` - Edit user name (2-60 chars) and admin notes (0-300 chars)
-- `Sidebar` - User list with online/tab indicators, notes icon, edit/delete buttons
+- `Sidebar` - User list with online/tab indicators, notes icon, edit/delete buttons, search, last message preview
 - `ChatArea` - Message list with pagination, input area, typing indicator
 - `Modal` - Base modal wrapper (sizes: sm, md, lg, xl)
 - `ConfirmModal` - Delete confirmation dialogs
+- `WidgetConfigurator` - Widget code snippet generator (visual settings, i18n, metadata, localStorage-based)
 
 ### Key Utils
 - `titleNotification.js` - Flashing tab title on new messages (startTitleFlash/stopTitleFlash)
 - `notificationSound.js` - 10 notification sounds with preview
+- `browserNotification.js` - Browser push notifications (permission request, click handler, localStorage toggle)
 - `dateUtils.js` - Date/time formatting with timezone support
 - `linkUtils.js` - URL detection and clickable link conversion
 
@@ -145,6 +148,10 @@ Server uses delayed logging to distinguish page navigation from real events:
 - SVG icons for widget buttons (send arrow + chat bubble)
 - Auto-deploy via GitHub webhook (`deploy-webhook.js` on port 9000 + `deploy.sh`)
 - Telegram notifications on successful deploy
+- Search in sidebar (by name, email, message text) with debounce + loading animation
+- Last message preview in sidebar (like Telegram/WhatsApp) with time + "You:" prefix
+- Browser push notifications (native Notification API, click opens chat, toggle in settings)
+- Widget configurator tab in settings (visual config, i18n, metadata, live code snippet, localStorage)
 
 ## Auto-Deploy
 ```
