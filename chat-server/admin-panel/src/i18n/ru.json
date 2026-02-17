@@ -35,7 +35,8 @@
     "search": "Поиск",
     "searchPlaceholder": "Поиск чатов...",
     "searchHint": "Введите поисковый запрос",
-    "searchNoResults": "Ничего не найдено"
+    "searchNoResults": "Ничего не найдено",
+    "you": "Вы"
   },
   "editUser": {
     "title": "Редактирование пользователя",

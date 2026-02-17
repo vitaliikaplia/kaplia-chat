@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useTranslation } from '../i18n';
+import { getTimeString } from '../utils/dateUtils';
 import { ConfirmModal } from './ConfirmModal';
 import { EditUserModal } from './EditUserModal';
 
@@ -15,7 +16,7 @@ export function Sidebar({
 }) {
   const { state } = useChat();
   const { t } = useTranslation();
-  const { users, usersInfo, activeUserId, notifications, onlineUsers, tabActiveUsers } = state;
+  const { users, usersInfo, activeUserId, notifications, onlineUsers, tabActiveUsers, config } = state;
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [editUserId, setEditUserId] = useState(null);
 
@@ -334,21 +335,21 @@ export function Sidebar({
                             </span>
                           )}
                         </div>
-                        {getUserEmail(userId) && (
-                          <div className="text-sm text-gray-500 truncate">
-                            {getUserEmail(userId)}
+                        {usersInfo[userId]?.lastMessage ? (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-xs text-gray-400 truncate flex-1">
+                              {usersInfo[userId].lastMessage.sender === 'support' && (
+                                <span className="text-gray-500">{t('sidebar.you')}: </span>
+                              )}
+                              {usersInfo[userId].lastMessage.text}
+                            </span>
+                            <span className="text-xs text-gray-400 flex-shrink-0">
+                              {getTimeString(usersInfo[userId].lastMessage.timestamp, config.timeFormat, config.timezone)}
+                            </span>
                           </div>
+                        ) : (
+                          <div className="text-xs text-gray-400 mt-0.5">{getUserEmail(userId) || userId}</div>
                         )}
-                        <div
-                          className="text-xs text-gray-400 truncate cursor-pointer hover:text-blue-500"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(userId);
-                          }}
-                          title={t('sidebar.copyId')}
-                        >
-                          {userId}
-                        </div>
                       </div>
 
                       {/* Edit button */}

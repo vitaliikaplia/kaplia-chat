@@ -35,7 +35,8 @@
     "search": "Пошук",
     "searchPlaceholder": "Пошук чатів...",
     "searchHint": "Введіть пошуковий запит",
-    "searchNoResults": "Нічого не знайдено"
+    "searchNoResults": "Нічого не знайдено",
+    "you": "Ви"
   },
   "editUser": {
     "title": "Редагування користувача",

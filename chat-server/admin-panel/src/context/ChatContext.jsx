@@ -51,7 +51,7 @@ function chatReducer(state, action) {
         ...state,
         users: action.payload.map(u => u.id),
         usersInfo: action.payload.reduce((acc, u) => {
-          acc[u.id] = u.info || {};
+          acc[u.id] = { ...(u.info || {}), lastMessage: u.lastMessage || null };
           return acc;
         }, {}),
       };
@@ -123,14 +123,24 @@ function chatReducer(state, action) {
     case 'SET_HAS_MORE':
       return { ...state, hasMoreMessages: action.payload };
 
-    case 'ADD_MESSAGE':
+    case 'ADD_MESSAGE': {
+      const msg = action.payload;
+      const updateLastMessage = msg.sender !== 'system' && msg.userId;
       return {
         ...state,
-        messages: [...state.messages, action.payload],
-        notifications: action.payload.userId !== state.activeUserId && action.payload.sender === 'client'
-          ? { ...state.notifications, [action.payload.userId]: true }
+        messages: [...state.messages, msg],
+        notifications: msg.userId !== state.activeUserId && msg.sender === 'client'
+          ? { ...state.notifications, [msg.userId]: true }
           : state.notifications,
+        usersInfo: updateLastMessage ? {
+          ...state.usersInfo,
+          [msg.userId]: {
+            ...state.usersInfo[msg.userId],
+            lastMessage: { text: msg.text, timestamp: msg.timestamp, sender: msg.sender },
+          },
+        } : state.usersInfo,
       };
+    }
 
     case 'DELETE_MESSAGE':
       return {

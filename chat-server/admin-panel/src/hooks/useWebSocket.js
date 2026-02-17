@@ -127,9 +127,12 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             timestamp: data.timestamp,
           });
         }
-        // Always update notification for non-active chats
+        // Always update notification and lastMessage for non-active chats
         if (data.from !== activeUserIdRef.current) {
           setNotification(data.from, true);
+          updateUserInfo(data.from, {
+            lastMessage: { text: data.text, timestamp: data.timestamp, sender: 'client' },
+          });
         }
         // Play notification sound and flash tab title
         if (soundEnabledRef.current) {
@@ -200,6 +203,11 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             sender: 'support',
             text: data.text,
             timestamp: data.timestamp,
+          });
+        } else {
+          // Update lastMessage for non-active user (e.g. API-sent messages)
+          updateUserInfo(data.targetId, {
+            lastMessage: { text: data.text, timestamp: data.timestamp, sender: 'support' },
           });
         }
         break;

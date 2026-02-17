@@ -35,7 +35,8 @@
     "search": "Search",
     "searchPlaceholder": "Search chats...",
     "searchHint": "Enter your search query",
-    "searchNoResults": "No results found"
+    "searchNoResults": "No results found",
+    "you": "You"
   },
   "editUser": {
     "title": "Edit user",

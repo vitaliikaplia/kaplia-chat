@@ -387,7 +387,19 @@ function getHistory(sessionId, callback, limit = null, beforeId = null, excludeS
 }
 
 function getAllSessions(callback) {
-    db.all("SELECT session_id, metadata, updated_at FROM sessions ORDER BY updated_at DESC", [], (err, rows) => { if (!err) callback(rows); });
+    db.all(`SELECT s.session_id, s.metadata, s.updated_at,
+                   lm.text AS last_message_text, lm.timestamp AS last_message_time, lm.sender AS last_message_sender
+            FROM sessions s
+            LEFT JOIN (
+                SELECT m1.session_id, m1.text, m1.timestamp, m1.sender
+                FROM messages m1
+                INNER JOIN (
+                    SELECT session_id, MAX(id) AS max_id
+                    FROM messages WHERE sender != 'system'
+                    GROUP BY session_id
+                ) m2 ON m1.id = m2.max_id
+            ) lm ON s.session_id = lm.session_id
+            ORDER BY s.updated_at DESC`, [], (err, rows) => { if (!err) callback(rows); });
 }
 
 function sendToUserTabs(userId, data) {
@@ -497,7 +509,15 @@ wss.on('connection', (ws, req) => {
                 }));
 
                 getAllSessions((rows) => {
-                    const usersList = rows.map(r => ({ id: r.session_id, info: JSON.parse(r.metadata || '{}') }));
+                    const usersList = rows.map(r => ({
+                        id: r.session_id,
+                        info: JSON.parse(r.metadata || '{}'),
+                        lastMessage: r.last_message_text ? {
+                            text: r.last_message_text,
+                            timestamp: r.last_message_time,
+                            sender: r.last_message_sender
+                        } : null
+                    }));
                     ws.send(JSON.stringify({ type: 'user_list', users: usersList }));
 
                     // Send current online status for all connected users
