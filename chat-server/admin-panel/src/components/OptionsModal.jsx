@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { playSound, soundOptions } from '../utils/notificationSound';
 import { useTranslation, LANGUAGES } from '../i18n';
+import { WidgetConfigurator } from './WidgetConfigurator';
 
 const TIMEZONE_OPTIONS = [
   { value: '-12', label: 'UTC -12:00' },
@@ -94,6 +95,7 @@ export function OptionsModal({
     { id: 'messages', label: t('settings.tabs.messages') },
     { id: 'spam', label: t('settings.tabs.spam') },
     { id: 'other', label: t('settings.tabs.other') },
+    { id: 'widget', label: t('settings.tabs.widget') },
   ];
 
   // Password
@@ -778,6 +780,9 @@ export function OptionsModal({
             </div>
           </div>
         )}
+
+        {/* Widget Tab */}
+        {activeTab === 'widget' && <WidgetConfigurator />}
       </div>
     </Modal>
   );

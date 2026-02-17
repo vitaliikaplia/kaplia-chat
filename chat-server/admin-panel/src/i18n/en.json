@@ -87,7 +87,8 @@
       "sound": "Sound",
       "messages": "Messages",
       "spam": "Spam",
-      "other": "Other"
+      "other": "Other",
+      "widget": "Widget"
     },
     "password": {
       "new": "New password",
@@ -170,6 +171,42 @@
       "anonymousCorsSave": "Save anonymous domains",
       "language": "Interface language",
       "languageHint": "Choose admin panel language"
+    },
+    "widget": {
+      "anonymous": "Anonymous mode",
+      "anonymousHint": "When enabled, visitors are anonymous. When disabled, user data (metadata) must be passed from your backend.",
+      "anonymousNote": "For proper operation, metadata (user_id, user_name, user_email) must be passed from your server-side template. See the metadata section below.",
+      "defaultLanguage": "Default language",
+      "defaultLanguageHint": "Widget language for visitors. Determines which texts are displayed.",
+      "useAdminTimezone": "Use admin timezone",
+      "useAdminTimezoneHint": "When enabled, message times in the widget use the admin's timezone instead of the visitor's local time.",
+      "visual": "Appearance",
+      "themeColor": "Theme color",
+      "themeColorHint": "Main color for the chat button, header, send button, and message bubbles.",
+      "position": "Widget position",
+      "positionRight": "Bottom-right",
+      "positionLeft": "Bottom-left",
+      "offsetX": "Horizontal offset (px)",
+      "offsetY": "Vertical offset (px)",
+      "offsetHint": "Distance from the edge of the screen in pixels.",
+      "i18nTitle": "Widget texts",
+      "i18nHint": "Customize the texts displayed in the widget for each language.",
+      "title": "Title",
+      "subtitle": "Subtitle",
+      "inputPlaceholder": "Input placeholder",
+      "sendBtn": "Send button text",
+      "initialMessage": "Greeting message",
+      "initialMessageHint": "Shown when a visitor opens the chat for the first time.",
+      "metadata": "Metadata (user data)",
+      "metadataHint": "Replace values with your server-side template variables (e.g., PHP, Jinja2, EJS).",
+      "metadataSession": "Session ID",
+      "metadataUserId": "User ID",
+      "metadataUserName": "User name",
+      "metadataUserEmail": "User email",
+      "snippet": "Code snippet",
+      "snippetHint": "Copy this code and paste it before the closing </body> tag on your website.",
+      "copy": "Copy",
+      "copied": "Copied!"
     }
   },
   "toast": {
