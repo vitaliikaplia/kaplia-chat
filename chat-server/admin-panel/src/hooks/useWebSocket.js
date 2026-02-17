@@ -374,6 +374,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             adminMessagesLimit: data.adminMessagesLimit || 20,
             widgetMessagesLimit: data.widgetMessagesLimit || 20,
             language: data.language || 'uk',
+            businessHours: data.businessHours || {},
           });
           return; // Don't pass to handleMessage since we handled it here
         }
@@ -491,6 +492,10 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_message_limits', adminMessagesLimit, widgetMessagesLimit });
   }, [send]);
 
+  const updateBusinessHours = useCallback((businessHours) => {
+    send({ type: 'update_business_hours', businessHours });
+  }, [send]);
+
   const sendAdminTyping = useCallback((targetId, isTyping) => {
     send({ type: 'admin_typing', targetId, isTyping });
   }, [send]);
@@ -563,6 +568,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateAnonymousOrigins,
     updateRateLimit,
     updateMessageLimits,
+    updateBusinessHours,
     sendAdminTyping,
     updateUserInfoFromAdmin,
     searchChats,

@@ -88,7 +88,8 @@
       "messages": "Messages",
       "spam": "Spam",
       "other": "Other",
-      "widget": "Widget"
+      "widget": "Widget",
+      "schedule": "Schedule"
     },
     "password": {
       "new": "New password",
@@ -171,6 +172,19 @@
       "anonymousCorsSave": "Save anonymous domains",
       "language": "Interface language",
       "languageHint": "Choose admin panel language"
+    },
+    "schedule": {
+      "title": "Business hours",
+      "hint": "Set working days and hours for support",
+      "save": "Save",
+      "dayOff": "day off",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat",
+      "sun": "Sun"
     },
     "widget": {
       "anonymous": "Anonymous mode",

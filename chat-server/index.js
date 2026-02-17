@@ -54,6 +54,7 @@ let allowedAnonymousOrigins = [];
 let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
 let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
 let adminLanguage = 'uk';
+let businessHoursConfig = {};
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
@@ -201,6 +202,7 @@ db.serialize(() => {
             messageLoadConfig.adminMessagesLimit = row.admin_messages_limit || 20;
             messageLoadConfig.widgetMessagesLimit = row.widget_messages_limit || 20;
             adminLanguage = row.admin_language || 'uk';
+            try { businessHoursConfig = row.business_hours ? JSON.parse(row.business_hours) : {}; } catch { businessHoursConfig = {}; }
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -224,6 +226,7 @@ db.serialize(() => {
                 if (!colNames.includes('admin_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN admin_messages_limit INTEGER DEFAULT 20");
                 if (!colNames.includes('widget_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN widget_messages_limit INTEGER DEFAULT 20");
                 if (!colNames.includes('admin_language')) db.run("ALTER TABLE admins ADD COLUMN admin_language TEXT DEFAULT 'uk'");
+                if (!colNames.includes('business_hours')) db.run("ALTER TABLE admins ADD COLUMN business_hours TEXT DEFAULT ''");
             });
         }
     });
@@ -509,7 +512,8 @@ wss.on('connection', (ws, req) => {
                     maxMessageLength: rateLimitConfig.maxMessageLength,
                     adminMessagesLimit: messageLoadConfig.adminMessagesLimit,
                     widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit,
-                    language: adminLanguage
+                    language: adminLanguage,
+                    businessHours: businessHoursConfig
                 }));
 
                 getAllSessions((rows) => {
@@ -665,6 +669,14 @@ wss.on('connection', (ws, req) => {
                                     messageLoadConfig.widgetMessagesLimit = data.widgetMessagesLimit;
                                     ws.send(JSON.stringify({ type: 'system', text: 'Налаштування повідомлень збережено!' }));
                                 });
+                        }
+
+                        if (data.type === 'update_business_hours') {
+                            const json = JSON.stringify(data.businessHours || {});
+                            db.run("UPDATE admins SET business_hours = ? WHERE username = ?", [json, 'admin'], () => {
+                                businessHoursConfig = data.businessHours || {};
+                                ws.send(JSON.stringify({ type: 'system', text: 'Робочі години збережено!' }));
+                            });
                         }
 
                         if (data.type === 'admin_typing') {

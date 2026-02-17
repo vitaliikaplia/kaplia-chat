@@ -60,6 +60,7 @@ export function OptionsModal({
   onSaveAnonymousOrigins,
   onSaveRateLimit,
   onSaveMessageLimits,
+  onSaveBusinessHours,
   soundEnabled,
   onSoundEnabledChange,
   soundType,
@@ -94,6 +95,7 @@ export function OptionsModal({
     { id: 'sound', label: t('settings.tabs.sound') },
     { id: 'messages', label: t('settings.tabs.messages') },
     { id: 'spam', label: t('settings.tabs.spam') },
+    { id: 'schedule', label: t('settings.tabs.schedule') },
     { id: 'other', label: t('settings.tabs.other') },
     { id: 'widget', label: t('settings.tabs.widget') },
   ];
@@ -128,6 +130,24 @@ export function OptionsModal({
   const [adminMessagesLimit, setAdminMessagesLimit] = useState(20);
   const [widgetMessagesLimit, setWidgetMessagesLimit] = useState(20);
 
+  // Business Hours
+  const DEFAULT_BUSINESS_HOURS = {
+    mon: { enabled: true, from: '09:00', to: '18:00' },
+    tue: { enabled: true, from: '09:00', to: '18:00' },
+    wed: { enabled: true, from: '09:00', to: '18:00' },
+    thu: { enabled: true, from: '09:00', to: '18:00' },
+    fri: { enabled: true, from: '09:00', to: '18:00' },
+    sat: { enabled: false, from: '10:00', to: '15:00' },
+    sun: { enabled: false, from: '10:00', to: '15:00' },
+  };
+  const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const TIME_OPTIONS = Array.from({ length: 48 }, (_, i) => {
+    const h = String(Math.floor(i / 2)).padStart(2, '0');
+    const m = i % 2 === 0 ? '00' : '30';
+    return `${h}:${m}`;
+  });
+  const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
+
   useEffect(() => {
     if (isOpen && config) {
       setToken(config.apiToken || '');
@@ -143,6 +163,9 @@ export function OptionsModal({
       setMaxMessageLength(config.maxMessageLength || 1000);
       setAdminMessagesLimit(config.adminMessagesLimit || 20);
       setWidgetMessagesLimit(config.widgetMessagesLimit || 20);
+      setBusinessHours(config.businessHours && Object.keys(config.businessHours).length > 0
+        ? config.businessHours
+        : DEFAULT_BUSINESS_HOURS);
     }
   }, [isOpen, config]);
 
@@ -221,6 +244,24 @@ export function OptionsModal({
 
   const handleSaveMessageLimits = () => {
     onSaveMessageLimits(parseInt(adminMessagesLimit) || 20, parseInt(widgetMessagesLimit) || 20);
+  };
+
+  const toggleDay = (day) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], enabled: !prev[day].enabled }
+    }));
+  };
+
+  const updateDayTime = (day, field, value) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      [day]: { ...prev[day], [field]: value }
+    }));
+  };
+
+  const handleSaveBusinessHours = () => {
+    onSaveBusinessHours(businessHours);
   };
 
   return (
@@ -611,6 +652,64 @@ export function OptionsModal({
               className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
             >
               {t('settings.spam.save')}
+            </button>
+          </div>
+        )}
+
+        {/* Schedule Tab */}
+        {activeTab === 'schedule' && (
+          <div className="space-y-4">
+            <div>
+              <span className="text-sm font-medium text-gray-700">{t('settings.schedule.title')}</span>
+              <p className="text-xs text-gray-500 mt-1">{t('settings.schedule.hint')}</p>
+            </div>
+
+            <div className="space-y-1">
+              {DAYS.map((day) => {
+                const dayData = businessHours[day] || { enabled: false, from: '09:00', to: '18:00' };
+                return (
+                  <div key={day} className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleDay(day)}
+                      className={`w-16 py-2 text-xs font-medium rounded-lg transition flex-shrink-0 ${
+                        dayData.enabled
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}
+                    >
+                      {t(`settings.schedule.${day}`)}
+                    </button>
+                    {dayData.enabled ? (
+                      <div className="flex items-center gap-1.5 flex-1">
+                        <select
+                          value={dayData.from}
+                          onChange={(e) => updateDayTime(day, 'from', e.target.value)}
+                          className="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        >
+                          {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <span className="text-gray-400 text-xs">—</span>
+                        <select
+                          value={dayData.to}
+                          onChange={(e) => updateDayTime(day, 'to', e.target.value)}
+                          className="flex-1 px-2 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                        >
+                          {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">{t('settings.schedule.dayOff')}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleSaveBusinessHours}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
+            >
+              {t('settings.schedule.save')}
             </button>
           </div>
         )}
