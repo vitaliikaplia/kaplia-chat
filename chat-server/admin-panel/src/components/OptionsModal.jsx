@@ -150,6 +150,7 @@ export function OptionsModal({
     return `${h}:${m}`;
   });
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
+  const [notificationEmails, setNotificationEmails] = useState('');
 
   // SMTP
   const [smtpHost, setSmtpHost] = useState('');
@@ -180,6 +181,7 @@ export function OptionsModal({
       setBusinessHours(config.businessHours && Object.keys(config.businessHours).length > 0
         ? config.businessHours
         : DEFAULT_BUSINESS_HOURS);
+      setNotificationEmails((config.businessHours && config.businessHours.notificationEmails) || '');
       const smtp = config.smtpConfig || {};
       setSmtpHost(smtp.host || '');
       setSmtpPort(smtp.port || '');
@@ -282,7 +284,7 @@ export function OptionsModal({
   };
 
   const handleSaveBusinessHours = () => {
-    onSaveBusinessHours(businessHours);
+    onSaveBusinessHours({ ...businessHours, notificationEmails });
   };
 
   const buildSmtpConfig = () => ({
@@ -748,6 +750,24 @@ export function OptionsModal({
                   </div>
                 );
               })}
+            </div>
+
+            <hr className="border-gray-200" />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.schedule.notificationEmails')}
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                {t('settings.schedule.notificationEmailsHint')}
+              </p>
+              <textarea
+                value={notificationEmails}
+                onChange={(e) => setNotificationEmails(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm font-mono"
+                placeholder={t('settings.schedule.notificationEmailsPlaceholder')}
+                rows={3}
+              />
             </div>
 
             <button

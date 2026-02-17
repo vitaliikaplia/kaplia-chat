@@ -126,6 +126,25 @@ function getBrowser(ua) {
     return 'Unknown';
 }
 
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getWidgetBusinessHours() {
+    const hours = {};
+    const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    DAYS.forEach(day => {
+        if (businessHoursConfig[day]) {
+            hours[day] = {
+                enabled: businessHoursConfig[day].enabled,
+                from: businessHoursConfig[day].from,
+                to: businessHoursConfig[day].to
+            };
+        }
+    });
+    return hours;
+}
+
 function getSessionInfo(req) {
     const ip = getClientIp(req);
     const ua = req.headers['user-agent'] || '';
@@ -488,6 +507,99 @@ app.post('/', (req, res) => {
 
 app.get('/widget.js', (req, res) => res.sendFile(path.join(__dirname, 'widget.js')));
 app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'favicon.ico')));
+
+// Public endpoint: business hours for widget
+app.get('/api/business-hours', (req, res) => {
+    const origin = req.headers.origin || '';
+    if (origin && checkOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+    res.json({ businessHours: getWidgetBusinessHours(), timezone: timeConfig.timezone });
+});
+
+// Contact form: CORS preflight
+app.options('/api/contact-form', (req, res) => {
+    const origin = req.headers.origin || '';
+    if (origin && checkOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    res.sendStatus(204);
+});
+
+// Contact form: submit offline message
+app.post('/api/contact-form', (req, res) => {
+    const origin = req.headers.origin || '';
+    if (origin && checkOriginAllowed(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Headers', 'Content-Type');
+    }
+
+    const { name, email, phone, message } = req.body;
+
+    // Validation
+    if (!name || !name.trim() || name.trim().length < 2 || name.trim().length > 60) {
+        return res.status(400).json({ error: 'invalid_name' });
+    }
+    if (!email || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        return res.status(400).json({ error: 'invalid_email' });
+    }
+    if (phone && phone.trim().length > 20) {
+        return res.status(400).json({ error: 'invalid_phone' });
+    }
+    if (!message || !message.trim() || message.trim().length > 2000) {
+        return res.status(400).json({ error: 'invalid_message' });
+    }
+
+    // Check SMTP
+    if (!smtpConfig.host || !smtpConfig.user || !smtpConfig.password) {
+        console.error('Contact form: SMTP not configured');
+        return res.status(500).json({ error: 'smtp_not_configured' });
+    }
+
+    // Check notification emails
+    const notificationEmails = (businessHoursConfig.notificationEmails || '')
+        .split('\n').map(e => e.trim()).filter(e => e && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+
+    if (notificationEmails.length === 0) {
+        console.error('Contact form: No notification emails configured');
+        return res.status(500).json({ error: 'no_notification_emails' });
+    }
+
+    const transport = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: parseInt(smtpConfig.port) || 587,
+        secure: smtpConfig.ssl,
+        auth: { user: smtpConfig.user, pass: smtpConfig.password }
+    });
+
+    const htmlBody = `
+        <h2>New contact form message</h2>
+        <table style="border-collapse:collapse;width:100%;max-width:600px;">
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Name</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(name.trim())}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Email</td><td style="padding:8px;border:1px solid #ddd;"><a href="mailto:${escapeHtml(email.trim())}">${escapeHtml(email.trim())}</a></td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Phone</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml((phone || '').trim()) || '—'}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Message</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(message.trim()).replace(/\n/g, '<br>')}</td></tr>
+        </table>
+        <p style="color:#999;font-size:12px;margin-top:20px;">Sent from Kaplia Chat contact form</p>
+    `;
+
+    const fromAddress = smtpConfig.fromName ? `"${smtpConfig.fromName}" <${smtpConfig.user}>` : smtpConfig.user;
+
+    transport.sendMail({
+        from: fromAddress,
+        to: notificationEmails.join(', '),
+        replyTo: email.trim(),
+        subject: `Contact form: ${name.trim()}`,
+        html: htmlBody,
+    }).then(() => {
+        res.json({ status: 'success' });
+    }).catch((err) => {
+        console.error('Contact form email error:', err.message);
+        res.status(500).json({ error: 'send_failed' });
+    });
+});
 
 wss.on('connection', (ws, req) => {
     const parameters = url.parse(req.url, true);
@@ -902,7 +1014,8 @@ wss.on('connection', (ws, req) => {
         timeFormat: timeConfig.timeFormat,
         timezone: timeConfig.timezone,
         messagesLimit: messageLoadConfig.widgetMessagesLimit,
-        anonymous: anonymous
+        anonymous: anonymous,
+        businessHours: getWidgetBusinessHours()
     }));
 
     getHistory(userId, (rows) => {

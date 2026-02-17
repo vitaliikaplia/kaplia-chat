@@ -197,7 +197,10 @@
       "thu": "Чт",
       "fri": "Пт",
       "sat": "Сб",
-      "sun": "Нд"
+      "sun": "Нд",
+      "notificationEmails": "Email для сповіщень",
+      "notificationEmailsHint": "Коли менеджери офлайн, клієнти зможуть залишити повідомлення через форму. Листи надсилатимуться на ці адреси. Один email на рядок.",
+      "notificationEmailsPlaceholder": "support@example.com\nmanager@example.com"
     },
     "widget": {
       "anonymous": "Анонімний режим",

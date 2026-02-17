@@ -197,7 +197,10 @@
       "thu": "Thu",
       "fri": "Fri",
       "sat": "Sat",
-      "sun": "Sun"
+      "sun": "Sun",
+      "notificationEmails": "Notification emails",
+      "notificationEmailsHint": "When managers are offline, clients can leave a message via a form. Emails will be sent to these addresses. One email per line.",
+      "notificationEmailsPlaceholder": "support@example.com\nmanager@example.com"
     },
     "widget": {
       "anonymous": "Anonymous mode",

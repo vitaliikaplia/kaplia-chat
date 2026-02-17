@@ -9,6 +9,14 @@
     const nameFormTexts = { ua: 'Введіть ваше імʼя', en: 'Enter your name', ru: 'Введите ваше имя' };
     const nameFormPlaceholder = nameFormTexts[lang] || nameFormTexts['en'];
 
+    // Offline form i18n
+    const offlineFormTexts = {
+        ua: { offlineMessage: 'Наразі всі менеджери офлайн, але ви можете надіслати нам повідомлення', name: "Ім'я", email: 'Email', phone: 'Телефон (необов\'язково)', message: 'Повідомлення', send: 'Надіслати', success: 'Дякуємо! Ваше повідомлення надіслано. Ми зв\'яжемося з вами найближчим часом.', errorName: 'Введіть ім\'я (мін. 2 символи)', errorEmail: 'Введіть коректний email', errorMessage: 'Введіть повідомлення', errorSend: 'Помилка відправки. Спробуйте пізніше.' },
+        en: { offlineMessage: 'All managers are currently offline, but you can send us a message', name: 'Name', email: 'Email', phone: 'Phone (optional)', message: 'Message', send: 'Send', success: 'Thank you! Your message has been sent. We will contact you shortly.', errorName: 'Enter your name (min. 2 characters)', errorEmail: 'Enter a valid email', errorMessage: 'Enter your message', errorSend: 'Failed to send. Please try again later.' },
+        ru: { offlineMessage: 'Все менеджеры сейчас офлайн, но вы можете отправить нам сообщение', name: 'Имя', email: 'Email', phone: 'Телефон (необязательно)', message: 'Сообщение', send: 'Отправить', success: 'Спасибо! Ваше сообщение отправлено. Мы свяжемся с вами в ближайшее время.', errorName: 'Введите имя (мин. 2 символа)', errorEmail: 'Введите корректный email', errorMessage: 'Введите сообщение', errorSend: 'Ошибка отправки. Попробуйте позже.' },
+    };
+    const offlineTexts = offlineFormTexts[lang] || offlineFormTexts['en'];
+
     const style = document.createElement('style');
     style.innerHTML = `
         #kaplia-widget .kaplia-chat-btn { position: fixed; bottom: 20px; right: 20px; width: 60px; height: 60px; background: #007bff; color: white; border-radius: 50%; border: none; font-size: 30px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 99999; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
@@ -48,6 +56,19 @@
         #kaplia-widget .k-name-form button:hover { background: #0056b3; }
         #kaplia-widget .k-name-form button:disabled { background: #ccc; cursor: default; }
         #kaplia-widget .k-input-area.k-disabled { opacity: 0.5; pointer-events: none; }
+
+        /* Offline form */
+        #kaplia-widget .k-offline-banner { padding: 12px 15px; background: #fff3cd; border-bottom: 1px solid #ffc107; font-size: 13px; color: #856404; text-align: center; flex-shrink: 0; }
+        #kaplia-widget .k-offline-form { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f9f9f9; }
+        #kaplia-widget .k-offline-form label { font-size: 13px; font-weight: 500; color: #555; margin-bottom: 2px; display: block; }
+        #kaplia-widget .k-offline-form input, #kaplia-widget .k-offline-form textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; outline: none; font-size: 14px; font-family: inherit; box-sizing: border-box; transition: border-color 0.2s; }
+        #kaplia-widget .k-offline-form input:focus, #kaplia-widget .k-offline-form textarea:focus { border-color: #007bff; }
+        #kaplia-widget .k-offline-form textarea { resize: vertical; min-height: 80px; }
+        #kaplia-widget .k-offline-form .k-field-error { font-size: 11px; color: #dc3545; margin-top: 2px; min-height: 14px; }
+        #kaplia-widget .k-offline-form .k-form-btn { width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; }
+        #kaplia-widget .k-offline-form .k-form-btn:hover { opacity: 0.9; }
+        #kaplia-widget .k-offline-form .k-form-btn:disabled { opacity: 0.5; cursor: default; }
+        #kaplia-widget .k-offline-success { padding: 20px 15px; text-align: center; font-size: 14px; color: #155724; background: #d4edda; border-radius: 8px; margin: 15px; }
     `;
     document.head.appendChild(style);
 
@@ -80,6 +101,7 @@
     let oldestMsgId = null;
     let isAnonymous = false;
     let anonymousDisconnect = false; // flag to prevent auto-reconnect on intentional close
+    let businessHoursData = null;
     let savedName = localStorage.getItem('kaplia_user_name') || '';
     let justSubmittedName = false;
     const hasMetadata = config.metadata && config.metadata.user_id;
@@ -293,6 +315,7 @@
                     if (data.timezone !== undefined) serverTimezone = parseFloat(data.timezone);
                     if (data.messagesLimit) messagesLimit = data.messagesLimit;
                     if (data.anonymous !== undefined) isAnonymous = data.anonymous;
+                    if (data.businessHours) businessHoursData = data.businessHours;
                 }
 
                 if (data.text && !data.type) {
@@ -423,10 +446,97 @@
 
     inp.oninput = () => { if (ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({ type: 'typing_update', text: inp.value })); } };
 
+    // --- OFFLINE / BUSINESS HOURS ---
+    function isBusinessOffline() {
+        if (!businessHoursData || Object.keys(businessHoursData).length === 0) return false;
+        const now = new Date();
+        const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const serverNow = new Date(utcMs + (serverTimezone * 3600000));
+        const dayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        const currentDay = dayNames[serverNow.getDay()];
+        const dayConfig = businessHoursData[currentDay];
+        if (!dayConfig || !dayConfig.enabled) return true;
+        const currentMinutes = serverNow.getHours() * 60 + serverNow.getMinutes();
+        const [fromH, fromM] = dayConfig.from.split(':').map(Number);
+        const [toH, toM] = dayConfig.to.split(':').map(Number);
+        return currentMinutes < (fromH * 60 + fromM) || currentMinutes >= (toH * 60 + toM);
+    }
+
+    function showOfflineForm() {
+        msgs.style.display = 'none';
+        inputArea.style.display = 'none';
+        let oc = document.getElementById('kOfflineContainer');
+        if (oc) { oc.style.display = 'flex'; return; }
+        oc = document.createElement('div');
+        oc.id = 'kOfflineContainer';
+        oc.style.cssText = 'display:flex;flex-direction:column;flex:1;overflow:hidden;';
+        const themeColor = (config.visual && config.visual.themeColor) || '#007bff';
+        oc.innerHTML = `<div class="k-offline-banner">${offlineTexts.offlineMessage}</div><div class="k-offline-form" id="kOfflineForm"><div><label>${offlineTexts.name} *</label><input type="text" id="kOfName" maxlength="60" placeholder="${offlineTexts.name}"><div class="k-field-error" id="kOfNameErr"></div></div><div><label>${offlineTexts.email} *</label><input type="email" id="kOfEmail" placeholder="${offlineTexts.email}"><div class="k-field-error" id="kOfEmailErr"></div></div><div><label>${offlineTexts.phone}</label><input type="tel" id="kOfPhone" maxlength="20" placeholder="${offlineTexts.phone}"></div><div><label>${offlineTexts.message} *</label><textarea id="kOfMessage" maxlength="2000" rows="4" placeholder="${offlineTexts.message}"></textarea><div class="k-field-error" id="kOfMsgErr"></div></div><button class="k-form-btn" id="kOfSubmit" style="background:${themeColor}">${offlineTexts.send}</button></div>`;
+        box.insertBefore(oc, msgs);
+        document.getElementById('kOfSubmit').onclick = submitOfflineForm;
+    }
+
+    function hideOfflineForm() {
+        const oc = document.getElementById('kOfflineContainer');
+        if (oc) oc.style.display = 'none';
+        msgs.style.display = 'flex';
+        inputArea.style.display = 'flex';
+    }
+
+    async function submitOfflineForm() {
+        const name = document.getElementById('kOfName').value.trim();
+        const email = document.getElementById('kOfEmail').value.trim();
+        const phone = document.getElementById('kOfPhone').value.trim();
+        const message = document.getElementById('kOfMessage').value.trim();
+        const btn = document.getElementById('kOfSubmit');
+        document.getElementById('kOfNameErr').textContent = '';
+        document.getElementById('kOfEmailErr').textContent = '';
+        document.getElementById('kOfMsgErr').textContent = '';
+        let hasError = false;
+        if (!name || name.length < 2) { document.getElementById('kOfNameErr').textContent = offlineTexts.errorName; hasError = true; }
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { document.getElementById('kOfEmailErr').textContent = offlineTexts.errorEmail; hasError = true; }
+        if (!message) { document.getElementById('kOfMsgErr').textContent = offlineTexts.errorMessage; hasError = true; }
+        if (hasError) return;
+        btn.disabled = true;
+        btn.textContent = '...';
+        try {
+            const baseUrl = SERVER_URL.replace('wss://', 'https://').replace('ws://', 'http://');
+            const resp = await fetch(`${baseUrl}/api/contact-form`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, phone, message, lang }) });
+            if (resp.ok) {
+                document.getElementById('kOfflineForm').innerHTML = `<div class="k-offline-success">${offlineTexts.success}</div>`;
+            } else { throw new Error('send_failed'); }
+        } catch (e) {
+            btn.disabled = false;
+            btn.textContent = offlineTexts.send;
+            let errEl = document.getElementById('kOfSendErr');
+            if (!errEl) { errEl = document.createElement('div'); errEl.id = 'kOfSendErr'; errEl.className = 'k-field-error'; errEl.style.textAlign = 'center'; btn.parentNode.appendChild(errEl); }
+            errEl.textContent = offlineTexts.errorSend;
+        }
+    }
+
+    // Fetch business hours on load (for anonymous users who don't have WS yet)
+    (async function() {
+        try {
+            const baseUrl = SERVER_URL.replace('wss://', 'https://').replace('ws://', 'http://');
+            const resp = await fetch(`${baseUrl}/api/business-hours`);
+            if (resp.ok) {
+                const data = await resp.json();
+                if (data.businessHours && Object.keys(data.businessHours).length > 0) businessHoursData = data.businessHours;
+                if (data.timezone !== undefined) serverTimezone = parseFloat(data.timezone);
+            }
+        } catch(e) {}
+    })();
+
     function toggleChat() {
         const isHidden = box.style.display === 'none' || box.style.display === '';
         box.style.display = isHidden ? 'flex' : 'none';
         if(isHidden) {
+            // Check business hours — show offline form if outside working hours
+            if (isBusinessOffline()) {
+                showOfflineForm();
+                return;
+            }
+            hideOfflineForm();
             // For anonymous/no-metadata users: connect WebSocket when chat opens
             if (!hasMetadata) {
                 if (savedName) {
