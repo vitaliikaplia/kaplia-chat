@@ -32,24 +32,35 @@ export function setNotificationClickHandler(handler) {
 }
 
 export function showBrowserNotification(title, body, userId) {
+  console.log('[Notification] check:', {
+    enabled: notificationEnabled,
+    supported: isNotificationSupported(),
+    permission: isNotificationSupported() ? Notification.permission : 'N/A',
+    hidden: document.hidden,
+  });
   if (!notificationEnabled) return;
   if (!isNotificationSupported()) return;
   if (Notification.permission !== 'granted') return;
   if (!document.hidden) return;
 
-  const notification = new Notification(title, {
-    body: body.length > 100 ? body.substring(0, 100) + '...' : body,
-    icon: '/favicon.ico',
-    tag: 'kaplia-' + userId,
-  });
+  try {
+    const notification = new Notification(title, {
+      body: body.length > 100 ? body.substring(0, 100) + '...' : body,
+      icon: '/favicon.ico',
+      tag: 'kaplia-' + userId,
+    });
 
-  notification.onclick = () => {
-    window.focus();
-    notification.close();
-    if (onClickCallback) {
-      onClickCallback(userId);
-    }
-  };
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      if (onClickCallback) {
+        onClickCallback(userId);
+      }
+    };
 
-  setTimeout(() => notification.close(), 5000);
+    setTimeout(() => notification.close(), 5000);
+    console.log('[Notification] shown successfully');
+  } catch (err) {
+    console.error('[Notification] error:', err);
+  }
 }
