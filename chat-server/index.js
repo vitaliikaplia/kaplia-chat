@@ -1050,6 +1050,9 @@ wss.on('connection', (ws, req) => {
 
                     broadcastToAdmins({ type: 'client_msg', from: userId, text: parsed.text, info: meta, timestamp: timestamp, id: newId });
 
+                    // Send msg_saved back to the sender so widget can set data-id for deletion
+                    ws.send(JSON.stringify({ type: 'msg_saved', id: newId }));
+
                     wss.clients.forEach(client => {
                         if (client.userId === userId && client !== ws && client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({

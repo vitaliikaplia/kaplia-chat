@@ -353,6 +353,12 @@
                     if (data.isTyping) { msgs.appendChild(typingEl); scrollToBottom(); }
                 }
 
+                if (data.type === 'msg_saved') {
+                    // Set data-id on the last sent message (which was added without id)
+                    const allMe = msgs.querySelectorAll('.k-msg.me:not([data-id])');
+                    if (allMe.length > 0) allMe[allMe.length - 1].setAttribute('data-id', data.id);
+                }
+
                 if (data.type === 'message_deleted') {
                     const el = document.querySelector(`.k-msg[data-id='${data.msgId}']`);
                     if (el) el.remove();
