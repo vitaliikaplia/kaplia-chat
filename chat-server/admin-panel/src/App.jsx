@@ -69,6 +69,8 @@ function AppContent() {
     updateRateLimit,
     updateMessageLimits,
     updateBusinessHours,
+    updateSmtp,
+    testSmtp,
     sendAdminTyping,
     updateUserInfoFromAdmin,
     searchChats,
@@ -236,6 +238,15 @@ function AppContent() {
     setConfig({ businessHours });
   };
 
+  const handleSaveSmtp = (smtpCfg) => {
+    updateSmtp(smtpCfg);
+    setConfig({ smtpConfig: smtpCfg });
+  };
+
+  const handleTestSmtp = (smtpCfg) => {
+    testSmtp(smtpCfg);
+  };
+
   const handleLoadMore = () => {
     if (state.messages.length > 0 && state.activeUserId) {
       const oldestMsgId = state.messages[0].id;
@@ -332,6 +343,8 @@ function AppContent() {
         onSaveRateLimit={handleSaveRateLimit}
         onSaveMessageLimits={handleSaveMessageLimits}
         onSaveBusinessHours={handleSaveBusinessHours}
+        onSaveSmtp={handleSaveSmtp}
+        onTestSmtp={handleTestSmtp}
         soundEnabled={soundEnabled}
         onSoundEnabledChange={handleSoundEnabledChange}
         soundType={soundType}

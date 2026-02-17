@@ -7,6 +7,7 @@ const fs = require('fs');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const maxmind = require('maxmind');
+const nodemailer = require('nodemailer');
 
 // Anonymous name generator (deprecated - widget now asks for name via form)
 // const ANON_ADJECTIVES = [
@@ -55,6 +56,7 @@ let rateLimitConfig = { maxMessagesPerMinute: 20, maxMessageLength: 1000 };
 let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
 let adminLanguage = 'uk';
 let businessHoursConfig = {};
+let smtpConfig = { host: '', port: '', user: '', password: '', fromName: '', ssl: true };
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
@@ -203,6 +205,7 @@ db.serialize(() => {
             messageLoadConfig.widgetMessagesLimit = row.widget_messages_limit || 20;
             adminLanguage = row.admin_language || 'uk';
             try { businessHoursConfig = row.business_hours ? JSON.parse(row.business_hours) : {}; } catch { businessHoursConfig = {}; }
+            try { smtpConfig = row.smtp_config ? JSON.parse(row.smtp_config) : smtpConfig; } catch { /* keep default */ }
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -227,6 +230,7 @@ db.serialize(() => {
                 if (!colNames.includes('widget_messages_limit')) db.run("ALTER TABLE admins ADD COLUMN widget_messages_limit INTEGER DEFAULT 20");
                 if (!colNames.includes('admin_language')) db.run("ALTER TABLE admins ADD COLUMN admin_language TEXT DEFAULT 'uk'");
                 if (!colNames.includes('business_hours')) db.run("ALTER TABLE admins ADD COLUMN business_hours TEXT DEFAULT ''");
+                if (!colNames.includes('smtp_config')) db.run("ALTER TABLE admins ADD COLUMN smtp_config TEXT DEFAULT ''");
             });
         }
     });
@@ -513,7 +517,8 @@ wss.on('connection', (ws, req) => {
                     adminMessagesLimit: messageLoadConfig.adminMessagesLimit,
                     widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit,
                     language: adminLanguage,
-                    businessHours: businessHoursConfig
+                    businessHours: businessHoursConfig,
+                    smtpConfig: smtpConfig
                 }));
 
                 getAllSessions((rows) => {
@@ -676,6 +681,35 @@ wss.on('connection', (ws, req) => {
                             db.run("UPDATE admins SET business_hours = ? WHERE username = ?", [json, 'admin'], () => {
                                 businessHoursConfig = data.businessHours || {};
                                 ws.send(JSON.stringify({ type: 'system', text: 'Робочі години збережено!' }));
+                            });
+                        }
+
+                        if (data.type === 'update_smtp') {
+                            const cfg = data.smtpConfig || {};
+                            const json = JSON.stringify(cfg);
+                            db.run("UPDATE admins SET smtp_config = ? WHERE username = ?", [json, 'admin'], () => {
+                                smtpConfig = cfg;
+                                ws.send(JSON.stringify({ type: 'system', text: 'SMTP збережено!' }));
+                            });
+                        }
+
+                        if (data.type === 'test_smtp') {
+                            const cfg = data.smtpConfig || smtpConfig;
+                            const transport = nodemailer.createTransport({
+                                host: cfg.host,
+                                port: parseInt(cfg.port) || 587,
+                                secure: cfg.ssl,
+                                auth: { user: cfg.user, pass: cfg.password }
+                            });
+                            transport.sendMail({
+                                from: cfg.fromName ? `"${cfg.fromName}" <${cfg.user}>` : cfg.user,
+                                to: cfg.user,
+                                subject: 'Kaplia Chat — Test Email',
+                                text: 'SMTP is configured correctly!'
+                            }).then(() => {
+                                ws.send(JSON.stringify({ type: 'system', text: 'Тестовий лист відправлено!' }));
+                            }).catch((err) => {
+                                ws.send(JSON.stringify({ type: 'system', text: `SMTP помилка: ${err.message}` }));
                             });
                         }
 

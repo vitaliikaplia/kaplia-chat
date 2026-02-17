@@ -61,6 +61,8 @@ export function OptionsModal({
   onSaveRateLimit,
   onSaveMessageLimits,
   onSaveBusinessHours,
+  onSaveSmtp,
+  onTestSmtp,
   soundEnabled,
   onSoundEnabledChange,
   soundType,
@@ -96,6 +98,7 @@ export function OptionsModal({
     { id: 'messages', label: t('settings.tabs.messages') },
     { id: 'spam', label: t('settings.tabs.spam') },
     { id: 'schedule', label: t('settings.tabs.schedule') },
+    { id: 'smtp', label: 'SMTP' },
     { id: 'other', label: t('settings.tabs.other') },
     { id: 'widget', label: t('settings.tabs.widget') },
   ];
@@ -148,6 +151,15 @@ export function OptionsModal({
   });
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
 
+  // SMTP
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState('');
+  const [smtpUser, setSmtpUser] = useState('');
+  const [smtpPassword, setSmtpPassword] = useState('');
+  const [smtpFromName, setSmtpFromName] = useState('');
+  const [smtpSsl, setSmtpSsl] = useState(true);
+  const [smtpPasswordVisible, setSmtpPasswordVisible] = useState(false);
+
   useEffect(() => {
     if (isOpen && config) {
       setToken(config.apiToken || '');
@@ -166,6 +178,13 @@ export function OptionsModal({
       setBusinessHours(config.businessHours && Object.keys(config.businessHours).length > 0
         ? config.businessHours
         : DEFAULT_BUSINESS_HOURS);
+      const smtp = config.smtpConfig || {};
+      setSmtpHost(smtp.host || '');
+      setSmtpPort(smtp.port || '');
+      setSmtpUser(smtp.user || '');
+      setSmtpPassword(smtp.password || '');
+      setSmtpFromName(smtp.fromName || '');
+      setSmtpSsl(smtp.ssl !== undefined ? smtp.ssl : true);
     }
   }, [isOpen, config]);
 
@@ -262,6 +281,23 @@ export function OptionsModal({
 
   const handleSaveBusinessHours = () => {
     onSaveBusinessHours(businessHours);
+  };
+
+  const buildSmtpConfig = () => ({
+    host: smtpHost,
+    port: smtpPort,
+    user: smtpUser,
+    password: smtpPassword,
+    fromName: smtpFromName,
+    ssl: smtpSsl,
+  });
+
+  const handleSmtpSave = () => {
+    onSaveSmtp(buildSmtpConfig());
+  };
+
+  const handleSmtpTest = () => {
+    onTestSmtp(buildSmtpConfig());
   };
 
   return (
@@ -711,6 +747,124 @@ export function OptionsModal({
             >
               {t('settings.schedule.save')}
             </button>
+          </div>
+        )}
+
+        {/* SMTP Tab */}
+        {activeTab === 'smtp' && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.smtp.host')}
+                </label>
+                <input
+                  type="text"
+                  value={smtpHost}
+                  onChange={(e) => setSmtpHost(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                  placeholder="smtp.gmail.com"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.smtp.port')}
+                </label>
+                <input
+                  type="text"
+                  value={smtpPort}
+                  onChange={(e) => setSmtpPort(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                  placeholder="587"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.smtp.user')}
+              </label>
+              <input
+                type="text"
+                value={smtpUser}
+                onChange={(e) => setSmtpUser(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                placeholder="user@gmail.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.smtp.password')}
+              </label>
+              <div className="relative">
+                <input
+                  type={smtpPasswordVisible ? 'text' : 'password'}
+                  value={smtpPassword}
+                  onChange={(e) => setSmtpPassword(e.target.value)}
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                  placeholder={t('settings.smtp.passwordPlaceholder')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSmtpPasswordVisible(!smtpPasswordVisible)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition"
+                >
+                  {smtpPasswordVisible ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.smtp.fromName')}
+              </label>
+              <input
+                type="text"
+                value={smtpFromName}
+                onChange={(e) => setSmtpFromName(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                placeholder={t('settings.smtp.fromNamePlaceholder')}
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">SSL/TLS</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={smtpSsl}
+                  onChange={(e) => setSmtpSsl(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleSmtpTest}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
+              >
+                {t('settings.smtp.test')}
+              </button>
+              <button
+                onClick={handleSmtpSave}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
+              >
+                {t('settings.smtp.save')}
+              </button>
+            </div>
           </div>
         )}
 

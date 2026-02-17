@@ -173,6 +173,17 @@
       "language": "Interface language",
       "languageHint": "Choose admin panel language"
     },
+    "smtp": {
+      "host": "SMTP host",
+      "port": "Port",
+      "user": "User",
+      "password": "Password",
+      "passwordPlaceholder": "SMTP password",
+      "fromName": "From name",
+      "fromNamePlaceholder": "Kaplia Chat",
+      "test": "Send test email",
+      "save": "Save"
+    },
     "schedule": {
       "title": "Business hours",
       "hint": "Set working days and hours for support",

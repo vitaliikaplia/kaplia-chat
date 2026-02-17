@@ -173,6 +173,17 @@
       "language": "Мова інтерфейсу",
       "languageHint": "Оберіть мову адмін-панелі"
     },
+    "smtp": {
+      "host": "SMTP хост",
+      "port": "Порт",
+      "user": "Користувач",
+      "password": "Пароль",
+      "passwordPlaceholder": "Пароль SMTP",
+      "fromName": "Ім'я відправника",
+      "fromNamePlaceholder": "Kaplia Chat",
+      "test": "Тестовий лист",
+      "save": "Зберегти"
+    },
     "schedule": {
       "title": "Робочі години",
       "hint": "Вкажіть дні та години роботи підтримки",
