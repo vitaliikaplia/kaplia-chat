@@ -31,7 +31,11 @@
     "deleteChat": "Видалити чат",
     "editUser": "Редагувати",
     "settings": "Налаштування",
-    "logout": "Вийти"
+    "logout": "Вийти",
+    "search": "Пошук",
+    "searchPlaceholder": "Пошук чатів...",
+    "searchHint": "Введіть пошуковий запит",
+    "searchNoResults": "Нічого не знайдено"
   },
   "editUser": {
     "title": "Редагування користувача",

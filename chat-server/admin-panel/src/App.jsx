@@ -62,6 +62,8 @@ function AppContent() {
     updateMessageLimits,
     sendAdminTyping,
     updateUserInfoFromAdmin,
+    searchChats,
+    setSearchResultsHandler,
   } = useWebSocket(handleSystemMessage, soundEnabled);
 
   const handleSoundEnabledChange = (enabled) => {
@@ -260,6 +262,8 @@ function AppContent() {
           onEditUser={updateUserInfoFromAdmin}
           onOpenSettings={handleOpenSettings}
           onLogout={handleLogout}
+          onSearch={searchChats}
+          onSearchResultsHandler={setSearchResultsHandler}
         />
       </div>
 

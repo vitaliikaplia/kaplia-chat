@@ -28,3 +28,13 @@ html, body, #root {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Search loading animation */
+@keyframes search-loading {
+  0% { transform: translateX(-100%); width: 40%; }
+  50% { transform: translateX(150%); width: 60%; }
+  100% { transform: translateX(400%); width: 40%; }
+}
+.animate-search-loading {
+  animation: search-loading 1.5s ease-in-out infinite;
+}

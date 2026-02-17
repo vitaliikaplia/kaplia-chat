@@ -13,6 +13,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
   const passwordRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const isManualDisconnectRef = useRef(false);
+  const onSearchResultsRef = useRef(null);
   const {
     state,
     setAuthenticated,
@@ -250,6 +251,12 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
         }
         break;
 
+      case 'search_results':
+        if (onSearchResultsRef.current) {
+          onSearchResultsRef.current(data.results, data.query);
+        }
+        break;
+
       default:
         console.log('Unknown message type:', data.type);
     }
@@ -473,6 +480,14 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateUserInfo(targetId, { user_name: userName, admin_notes: adminNotes });
   }, [send, updateUserInfo]);
 
+  const searchChats = useCallback((query) => {
+    send({ type: 'search_chats', query });
+  }, [send]);
+
+  const setSearchResultsHandler = useCallback((handler) => {
+    onSearchResultsRef.current = handler;
+  }, []);
+
   const disconnect = useCallback(() => {
     isManualDisconnectRef.current = true;
     passwordRef.current = null;
@@ -530,5 +545,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateMessageLimits,
     sendAdminTyping,
     updateUserInfoFromAdmin,
+    searchChats,
+    setSearchResultsHandler,
   };
 }

@@ -31,7 +31,11 @@
     "deleteChat": "Delete chat",
     "editUser": "Edit",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "search": "Search",
+    "searchPlaceholder": "Search chats...",
+    "searchHint": "Enter your search query",
+    "searchNoResults": "No results found"
   },
   "editUser": {
     "title": "Edit user",

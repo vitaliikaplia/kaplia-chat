@@ -700,6 +700,70 @@ wss.on('connection', (ws, req) => {
                                 });
                             });
                         }
+
+                        if (data.type === 'search_chats') {
+                            const query = (data.query || '').trim();
+                            if (query.length < 2 || query.length > 100) {
+                                ws.send(JSON.stringify({ type: 'search_results', results: [], query: data.query }));
+                                return;
+                            }
+                            const escapedQuery = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
+                            const likePattern = '%' + escapedQuery + '%';
+
+                            db.all(
+                                `SELECT s.session_id, s.metadata, s.updated_at FROM sessions s
+                                 WHERE json_extract(s.metadata, '$.user_name') LIKE ? ESCAPE '\\'
+                                    OR json_extract(s.metadata, '$.name') LIKE ? ESCAPE '\\'
+                                    OR json_extract(s.metadata, '$.user_email') LIKE ? ESCAPE '\\'
+                                 ORDER BY s.updated_at DESC`,
+                                [likePattern, likePattern, likePattern],
+                                (err, nameRows) => {
+                                    if (err) nameRows = [];
+                                    db.all(
+                                        `SELECT DISTINCT m.session_id, s.metadata, s.updated_at,
+                                                m.text as matched_text
+                                         FROM messages m
+                                         JOIN sessions s ON s.session_id = m.session_id
+                                         WHERE m.sender != 'system' AND m.text LIKE ? ESCAPE '\\'
+                                         ORDER BY m.timestamp DESC LIMIT 50`,
+                                        [likePattern],
+                                        (err2, msgRows) => {
+                                            if (err2) msgRows = [];
+                                            const resultsMap = new Map();
+                                            for (const row of nameRows) {
+                                                resultsMap.set(row.session_id, {
+                                                    id: row.session_id,
+                                                    info: JSON.parse(row.metadata || '{}'),
+                                                    matchType: 'name',
+                                                    matchedText: null
+                                                });
+                                            }
+                                            for (const row of msgRows) {
+                                                if (resultsMap.has(row.session_id)) {
+                                                    const existing = resultsMap.get(row.session_id);
+                                                    if (!existing.matchedText) {
+                                                        existing.matchType = 'both';
+                                                        existing.matchedText = row.matched_text.substring(0, 150);
+                                                    }
+                                                } else {
+                                                    resultsMap.set(row.session_id, {
+                                                        id: row.session_id,
+                                                        info: JSON.parse(row.metadata || '{}'),
+                                                        matchType: 'message',
+                                                        matchedText: row.matched_text.substring(0, 150)
+                                                    });
+                                                }
+                                            }
+                                            ws.send(JSON.stringify({
+                                                type: 'search_results',
+                                                results: Array.from(resultsMap.values()).slice(0, 30),
+                                                query: data.query
+                                            }));
+                                        }
+                                    );
+                                }
+                            );
+                        }
                     } catch (e) { console.error(e); }
                 });
                 ws.on('close', () => { adminSocket = null; });
