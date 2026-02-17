@@ -182,6 +182,8 @@
       "fromName": "Ім'я відправника",
       "fromNamePlaceholder": "Kaplia Chat",
       "test": "Тестовий лист",
+      "send": "Надіслати",
+      "testEmail": "Email для тестового листа",
       "save": "Зберегти"
     },
     "schedule": {

@@ -703,7 +703,7 @@ wss.on('connection', (ws, req) => {
                             });
                             transport.sendMail({
                                 from: cfg.fromName ? `"${cfg.fromName}" <${cfg.user}>` : cfg.user,
-                                to: cfg.user,
+                                to: cfg.testEmail || cfg.user,
                                 subject: 'Kaplia Chat — Test Email',
                                 text: 'SMTP is configured correctly!'
                             }).then(() => {

@@ -159,6 +159,8 @@ export function OptionsModal({
   const [smtpFromName, setSmtpFromName] = useState('');
   const [smtpSsl, setSmtpSsl] = useState(true);
   const [smtpPasswordVisible, setSmtpPasswordVisible] = useState(false);
+  const [smtpTestEmail, setSmtpTestEmail] = useState('');
+  const [smtpTestMode, setSmtpTestMode] = useState(false);
 
   useEffect(() => {
     if (isOpen && config) {
@@ -297,7 +299,14 @@ export function OptionsModal({
   };
 
   const handleSmtpTest = () => {
-    onTestSmtp(buildSmtpConfig());
+    if (!smtpTestMode) {
+      setSmtpTestMode(true);
+      setSmtpTestEmail(smtpUser || '');
+      return;
+    }
+    if (!smtpTestEmail.trim()) return;
+    onTestSmtp({ ...buildSmtpConfig(), testEmail: smtpTestEmail.trim() });
+    setSmtpTestMode(false);
   };
 
   return (
@@ -851,12 +860,40 @@ export function OptionsModal({
               </label>
             </div>
 
+            {smtpTestMode && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t('settings.smtp.testEmail')}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={smtpTestEmail}
+                    onChange={(e) => setSmtpTestEmail(e.target.value)}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition text-sm"
+                    placeholder="test@example.com"
+                    onKeyDown={(e) => e.key === 'Enter' && handleSmtpTest()}
+                  />
+                  <button
+                    onClick={() => setSmtpTestMode(false)}
+                    className="px-3 py-2 text-gray-400 hover:text-gray-600 transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={handleSmtpTest}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition text-sm"
+                className={`flex-1 font-medium py-2 px-4 rounded-lg transition text-sm ${
+                  smtpTestMode
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300'
+                }`}
               >
-                {t('settings.smtp.test')}
+                {smtpTestMode ? t('settings.smtp.send') : t('settings.smtp.test')}
               </button>
               <button
                 onClick={handleSmtpSave}

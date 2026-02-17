@@ -181,7 +181,9 @@
       "passwordPlaceholder": "SMTP password",
       "fromName": "From name",
       "fromNamePlaceholder": "Kaplia Chat",
-      "test": "Send test email",
+      "test": "Test email",
+      "send": "Send",
+      "testEmail": "Email for test message",
       "save": "Save"
     },
     "schedule": {
