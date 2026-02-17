@@ -85,7 +85,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Welcome Messages**: New anonymous users see a personalized greeting ("Вітаємо, Name!") after submitting the name form. Returning users are not greeted again.
 - **Persistent Greeting**: The initial greeting message stays visible even when chat history is loaded.
 - **Session Reset**: When admin deletes an anonymous session, the widget generates a new session ID and shows the name form again (no auto-reconnect loop).
-- **Offline Contact Form**: When the chat is opened outside business hours, the widget shows an offline banner and a contact form (name, email, phone, message) instead of the regular chat. On submit, the form data is sent to the server via REST API, which emails it to the configured notification addresses via SMTP. Fully localized (Ukrainian, English, Russian).
+- **Offline Contact Form**: When the chat is opened outside business hours, the widget shows an offline banner and a contact form (name, email, phone, message) instead of the regular chat. On submit, the form data is sent to the server via REST API, which emails it to the configured notification addresses via SMTP. The email includes visitor's GeoIP location (country, city, IP via MaxMind), device/browser info (via User-Agent), and page URL. Fully localized (Ukrainian, English, Russian).
 
 ### Other Features
 - **Localization**: Full support for custom Timezones and Date/Time formats to match your business region.

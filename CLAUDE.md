@@ -157,7 +157,7 @@ Server uses delayed logging to distinguish page navigation from real events:
 - Multiple simultaneous admin connections (all admin tabs/devices receive real-time updates)
 - Business hours settings (per-day schedule with enabled/disabled toggle and time ranges)
 - SMTP settings tab (host, port, user, password, from name, SSL/TLS toggle, test email with custom recipient)
-- Offline contact form in widget (shown outside business hours: name, email, phone, message → email via SMTP)
+- Offline contact form in widget (shown outside business hours: name, email, phone, message → email via SMTP with GeoIP, device info, page URL)
 - Notification emails config in Schedule tab (one email per line, used for offline form submissions)
 - REST endpoints: `GET /api/business-hours` (public), `POST /api/contact-form` (public, sends email via nodemailer)
 - Widget fetches business hours via REST on load (before WS connection, critical for anonymous users)
