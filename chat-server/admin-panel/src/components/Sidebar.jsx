@@ -337,14 +337,14 @@ export function Sidebar({
                         </div>
                         {usersInfo[userId]?.lastMessage ? (
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span className="text-xs text-gray-400 truncate flex-1">
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {getTimeString(usersInfo[userId].lastMessage.timestamp, config.timeFormat, config.timezone)}
+                            </span>
+                            <span className="text-xs text-gray-400 truncate">
                               {usersInfo[userId].lastMessage.sender === 'support' && (
                                 <span className="text-gray-500">{t('sidebar.you')}: </span>
                               )}
                               {usersInfo[userId].lastMessage.text}
-                            </span>
-                            <span className="text-xs text-gray-400 flex-shrink-0">
-                              {getTimeString(usersInfo[userId].lastMessage.timestamp, config.timeFormat, config.timezone)}
                             </span>
                           </div>
                         ) : (

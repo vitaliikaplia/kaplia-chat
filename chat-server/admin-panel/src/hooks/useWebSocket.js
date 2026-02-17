@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import { useChat } from '../context/ChatContext';
 import { playNotificationSound } from '../utils/notificationSound';
 import { startTitleFlash } from '../utils/titleNotification';
+import { showBrowserNotification } from '../utils/browserNotification';
 
 export function useWebSocket(onSystemMessage, soundEnabled = true) {
   const soundEnabledRef = useRef(soundEnabled);
@@ -14,6 +15,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
   const reconnectTimeoutRef = useRef(null);
   const isManualDisconnectRef = useRef(false);
   const onSearchResultsRef = useRef(null);
+  const usersInfoRef = useRef({});
   const {
     state,
     setAuthenticated,
@@ -34,10 +36,14 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     setTabActive,
   } = useChat();
 
-  // Keep ref in sync with state
+  // Keep refs in sync with state
   useEffect(() => {
     activeUserIdRef.current = state.activeUserId;
   }, [state.activeUserId]);
+
+  useEffect(() => {
+    usersInfoRef.current = state.usersInfo;
+  }, [state.usersInfo]);
 
   const handleMessage = useCallback((data) => {
     switch (data.type) {
@@ -139,6 +145,12 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           playNotificationSound();
         }
         startTitleFlash();
+        // Browser notification
+        {
+          const info = data.info || usersInfoRef.current[data.from] || {};
+          const name = info.user_name || info.name || data.from;
+          showBrowserNotification(name, data.text, data.from);
+        }
         break;
 
       case 'client_typing':

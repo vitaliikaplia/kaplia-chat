@@ -128,7 +128,9 @@
       "enabled": "Sound notifications",
       "enabledHint": "Play sound for new messages",
       "type": "Notification sound type",
-      "test": "Test"
+      "test": "Test",
+      "browserNotifications": "Browser notifications",
+      "browserNotificationsHint": "Show notifications for new messages"
     },
     "messages": {
       "adminLimit": "Messages in admin chat",

@@ -8,6 +8,13 @@ import { ChatArea } from './components/ChatArea';
 import { OptionsModal } from './components/OptionsModal';
 import { ConfirmModal } from './components/ConfirmModal';
 import { Toast } from './components/Toast';
+import {
+  setNotificationClickHandler,
+  setNotificationEnabled,
+  isNotificationEnabled,
+  isNotificationSupported,
+  requestNotificationPermission,
+} from './utils/browserNotification';
 
 function AppContent() {
   const { state, setActiveUser, clearNotification, setConfig } = useChat();
@@ -24,6 +31,7 @@ function AppContent() {
   const [soundType, setSoundType] = useState(() => {
     return localStorage.getItem('kaplia_sound_type') || 'chime';
   });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => isNotificationEnabled());
 
   // Sync language with config from server
   useEffect(() => {
@@ -65,6 +73,27 @@ function AppContent() {
     searchChats,
     setSearchResultsHandler,
   } = useWebSocket(handleSystemMessage, soundEnabled);
+
+  // Set up browser notification click handler
+  useEffect(() => {
+    setNotificationClickHandler((userId) => {
+      setActiveUser(userId);
+      clearNotification(userId);
+      getHistory(userId);
+      setSidebarOpen(false);
+    });
+  }, [setActiveUser, clearNotification, getHistory]);
+
+  const handleNotificationsEnabledChange = async (enabled) => {
+    if (enabled && isNotificationSupported()) {
+      const permission = await requestNotificationPermission();
+      if (permission !== 'granted') {
+        return;
+      }
+    }
+    setNotificationsEnabled(enabled);
+    setNotificationEnabled(enabled);
+  };
 
   const handleSoundEnabledChange = (enabled) => {
     setSoundEnabled(enabled);
@@ -300,6 +329,8 @@ function AppContent() {
         onSoundEnabledChange={handleSoundEnabledChange}
         soundType={soundType}
         onSoundTypeChange={handleSoundTypeChange}
+        notificationsEnabled={notificationsEnabled}
+        onNotificationsEnabledChange={handleNotificationsEnabledChange}
         onCopyToken={() => showToast(t('settings.token.copied'), 'success')}
       />
       <ConfirmModal
