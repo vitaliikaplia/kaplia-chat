@@ -536,7 +536,8 @@ app.post('/api/contact-form', (req, res) => {
         res.header('Access-Control-Allow-Headers', 'Content-Type');
     }
 
-    const { name, email, phone, message } = req.body;
+    const { name, email, phone, message, pageUrl } = req.body;
+    const sessionInfo = getSessionInfo(req);
 
     // Validation
     if (!name || !name.trim() || name.trim().length < 2 || name.trim().length > 60) {
@@ -581,6 +582,9 @@ app.post('/api/contact-form', (req, res) => {
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Email</td><td style="padding:8px;border:1px solid #ddd;"><a href="mailto:${escapeHtml(email.trim())}">${escapeHtml(email.trim())}</a></td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Phone</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml((phone || '').trim()) || '—'}</td></tr>
             <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Message</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(message.trim()).replace(/\n/g, '<br>')}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Location</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(sessionInfo.geo)}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Device</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(sessionInfo.platform)}, ${escapeHtml(sessionInfo.browser)}</td></tr>
+            ${pageUrl ? `<tr><td style="padding:8px;border:1px solid #ddd;font-weight:bold;">Page</td><td style="padding:8px;border:1px solid #ddd;"><a href="${escapeHtml(pageUrl)}">${escapeHtml(pageUrl)}</a></td></tr>` : ''}
         </table>
         <p style="color:#999;font-size:12px;margin-top:20px;">Sent from Kaplia Chat contact form</p>
     `;

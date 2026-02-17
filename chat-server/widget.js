@@ -501,7 +501,7 @@
         btn.textContent = '...';
         try {
             const baseUrl = SERVER_URL.replace('wss://', 'https://').replace('ws://', 'http://');
-            const resp = await fetch(`${baseUrl}/api/contact-form`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, phone, message, lang }) });
+            const resp = await fetch(`${baseUrl}/api/contact-form`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, email, phone, message, lang, pageUrl: window.location.href }) });
             if (resp.ok) {
                 document.getElementById('kOfflineForm').innerHTML = `<div class="k-offline-success">${offlineTexts.success}</div>`;
             } else { throw new Error('send_failed'); }
