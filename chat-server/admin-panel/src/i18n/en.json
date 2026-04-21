@@ -202,6 +202,8 @@
     "schedule": {
       "title": "Business hours",
       "hint": "Set working days and hours for support",
+      "enabled": "Enable business hours logic",
+      "enabledHint": "When disabled, the widget always shows the regular chat and never switches to the offline form.",
       "save": "Save",
       "dayOff": "day off",
       "mon": "Mon",

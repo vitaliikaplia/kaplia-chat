@@ -153,6 +153,7 @@ export function OptionsModal({
     return `${h}:${m}`;
   });
   const [businessHours, setBusinessHours] = useState(DEFAULT_BUSINESS_HOURS);
+  const [businessHoursEnabled, setBusinessHoursEnabled] = useState(false);
   const [notificationEmails, setNotificationEmails] = useState('');
 
   // SMTP
@@ -186,10 +187,18 @@ export function OptionsModal({
       setMaxMessageLength(config.maxMessageLength || 1000);
       setAdminMessagesLimit(config.adminMessagesLimit || 20);
       setWidgetMessagesLimit(config.widgetMessagesLimit || 20);
-      setBusinessHours(config.businessHours && Object.keys(config.businessHours).length > 0
-        ? config.businessHours
-        : DEFAULT_BUSINESS_HOURS);
-      setNotificationEmails((config.businessHours && config.businessHours.notificationEmails) || '');
+      const scheduleConfig = config.businessHours || {};
+      const normalizedBusinessHours = DAYS.reduce((acc, day) => {
+        acc[day] = scheduleConfig[day] || DEFAULT_BUSINESS_HOURS[day];
+        return acc;
+      }, {});
+      setBusinessHours(normalizedBusinessHours);
+      setBusinessHoursEnabled(
+        scheduleConfig.enabled !== undefined
+          ? !!scheduleConfig.enabled
+          : Object.keys(scheduleConfig).length > 0
+      );
+      setNotificationEmails(scheduleConfig.notificationEmails || '');
       const smtp = config.smtpConfig || {};
       setSmtpHost(smtp.host || '');
       setSmtpPort(smtp.port || '');
@@ -296,7 +305,7 @@ export function OptionsModal({
   };
 
   const handleSaveBusinessHours = () => {
-    onSaveBusinessHours({ ...businessHours, notificationEmails });
+    onSaveBusinessHours({ enabled: businessHoursEnabled, ...businessHours, notificationEmails });
   };
 
   const buildSmtpConfig = () => ({
@@ -740,6 +749,22 @@ export function OptionsModal({
             <div>
               <span className="text-sm font-medium text-gray-700">{t('settings.schedule.title')}</span>
               <p className="text-xs text-gray-500 mt-1">{t('settings.schedule.hint')}</p>
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
+              <div>
+                <span className="text-sm font-medium text-gray-700">{t('settings.schedule.enabled')}</span>
+                <p className="text-xs text-gray-500">{t('settings.schedule.enabledHint')}</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={businessHoursEnabled}
+                  onChange={(e) => setBusinessHoursEnabled(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+              </label>
             </div>
 
             <div className="space-y-1">

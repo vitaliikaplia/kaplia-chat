@@ -449,6 +449,7 @@
     // --- OFFLINE / BUSINESS HOURS ---
     function isBusinessOffline() {
         if (!businessHoursData || Object.keys(businessHoursData).length === 0) return false;
+        if (businessHoursData.enabled === false) return false;
         const now = new Date();
         const utcMs = now.getTime() + (now.getTimezoneOffset() * 60000);
         const serverNow = new Date(utcMs + (serverTimezone * 3600000));

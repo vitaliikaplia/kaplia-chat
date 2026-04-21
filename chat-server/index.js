@@ -141,7 +141,9 @@ function escapeTelegramHtml(str) {
 }
 
 function getWidgetBusinessHours() {
-    const hours = {};
+    const hours = {
+        enabled: businessHoursConfig.enabled !== undefined ? !!businessHoursConfig.enabled : Object.keys(businessHoursConfig).length > 0
+    };
     const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     DAYS.forEach(day => {
         if (businessHoursConfig[day]) {
