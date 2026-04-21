@@ -63,6 +63,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
           maxMessagesPerMinute: data.maxMessagesPerMinute || 20,
           maxMessageLength: data.maxMessageLength || 1000,
           language: data.language || 'uk',
+          telegramConfig: data.telegramConfig || { botToken: '', chatId: '', enabled: false, lastUpdateId: 0 },
         });
         if (onSystemMessageRef.current) {
           onSystemMessageRef.current('Успішна авторизація!');
@@ -271,6 +272,12 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
         }
         break;
 
+      case 'telegram_updated':
+        setConfig({
+          telegramConfig: data.telegramConfig || { botToken: '', chatId: '', enabled: false, lastUpdateId: 0 },
+        });
+        break;
+
       case 'search_results':
         if (onSearchResultsRef.current) {
           onSearchResultsRef.current(data.results, data.query);
@@ -376,6 +383,7 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
             language: data.language || 'uk',
             businessHours: data.businessHours || {},
             smtpConfig: data.smtpConfig || {},
+            telegramConfig: data.telegramConfig || { botToken: '', chatId: '', enabled: false, lastUpdateId: 0 },
           });
           return; // Don't pass to handleMessage since we handled it here
         }
@@ -501,6 +509,14 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     send({ type: 'update_smtp', smtpConfig });
   }, [send]);
 
+  const updateTelegramSettings = useCallback((telegramConfig) => {
+    send({ type: 'update_telegram_settings', telegramConfig });
+  }, [send]);
+
+  const toggleTelegramBot = useCallback((enabled) => {
+    send({ type: 'toggle_telegram_bot', enabled });
+  }, [send]);
+
   const testSmtp = useCallback((smtpConfig) => {
     send({ type: 'test_smtp', smtpConfig });
   }, [send]);
@@ -579,6 +595,8 @@ export function useWebSocket(onSystemMessage, soundEnabled = true) {
     updateMessageLimits,
     updateBusinessHours,
     updateSmtp,
+    updateTelegramSettings,
+    toggleTelegramBot,
     testSmtp,
     sendAdminTyping,
     updateUserInfoFromAdmin,

@@ -70,6 +70,8 @@ function AppContent() {
     updateMessageLimits,
     updateBusinessHours,
     updateSmtp,
+    updateTelegramSettings,
+    toggleTelegramBot,
     testSmtp,
     sendAdminTyping,
     updateUserInfoFromAdmin,
@@ -247,6 +249,15 @@ function AppContent() {
     testSmtp(smtpCfg);
   };
 
+  const handleSaveTelegram = (telegramCfg) => {
+    updateTelegramSettings(telegramCfg);
+    setConfig({ telegramConfig: { ...state.config.telegramConfig, ...telegramCfg } });
+  };
+
+  const handleToggleTelegramBot = (enabled) => {
+    toggleTelegramBot(enabled);
+  };
+
   const handleLoadMore = () => {
     if (state.messages.length > 0 && state.activeUserId) {
       const oldestMsgId = state.messages[0].id;
@@ -344,6 +355,8 @@ function AppContent() {
         onSaveMessageLimits={handleSaveMessageLimits}
         onSaveBusinessHours={handleSaveBusinessHours}
         onSaveSmtp={handleSaveSmtp}
+        onSaveTelegram={handleSaveTelegram}
+        onToggleTelegramBot={handleToggleTelegramBot}
         onTestSmtp={handleTestSmtp}
         soundEnabled={soundEnabled}
         onSoundEnabledChange={handleSoundEnabledChange}

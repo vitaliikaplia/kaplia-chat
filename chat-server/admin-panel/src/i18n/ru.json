@@ -87,6 +87,7 @@
       "sound": "Звук",
       "messages": "Сообщения",
       "spam": "Спам",
+      "telegram": "Telegram",
       "other": "Другое",
       "widget": "Виджет",
       "schedule": "График"
@@ -185,6 +186,18 @@
       "send": "Отправить",
       "testEmail": "Email для тестового письма",
       "save": "Сохранить"
+    },
+    "telegram": {
+      "botToken": "Токен Telegram бота",
+      "botTokenPlaceholder": "123456:ABC-DEF...",
+      "chatId": "ID Telegram чата",
+      "chatIdPlaceholder": "-1001234567890",
+      "chatIdHint": "Укажите ID группы или супергруппы с включёнными темами.",
+      "statusEnabled": "Бот сейчас слушает указанный чат и отправляет ответы из тем обратно в виджет.",
+      "statusDisabled": "Бот выключен. Ответы из Telegram сейчас не синхронизируются обратно в чат.",
+      "save": "Сохранить",
+      "enable": "Включить бота для чата",
+      "disable": "Выключить бота для чата"
     },
     "schedule": {
       "title": "Рабочие часы",

@@ -32,6 +32,12 @@ const initialState = {
     maxMessageLength: 1000,
     adminMessagesLimit: 20,
     widgetMessagesLimit: 20,
+    telegramConfig: {
+      botToken: '',
+      chatId: '',
+      enabled: false,
+      lastUpdateId: 0,
+    },
   },
   notifications: {},
   hasMoreMessages: false,

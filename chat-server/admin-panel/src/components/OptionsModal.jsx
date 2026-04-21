@@ -62,6 +62,8 @@ export function OptionsModal({
   onSaveMessageLimits,
   onSaveBusinessHours,
   onSaveSmtp,
+  onSaveTelegram,
+  onToggleTelegramBot,
   onTestSmtp,
   soundEnabled,
   onSoundEnabledChange,
@@ -99,6 +101,7 @@ export function OptionsModal({
     { id: 'spam', label: t('settings.tabs.spam') },
     { id: 'schedule', label: t('settings.tabs.schedule') },
     { id: 'smtp', label: 'SMTP' },
+    { id: 'telegram', label: t('settings.tabs.telegram') },
     { id: 'other', label: t('settings.tabs.other') },
     { id: 'widget', label: t('settings.tabs.widget') },
   ];
@@ -163,6 +166,11 @@ export function OptionsModal({
   const [smtpTestEmail, setSmtpTestEmail] = useState('');
   const [smtpTestMode, setSmtpTestMode] = useState(false);
 
+  // Telegram
+  const [telegramBotToken, setTelegramBotToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [telegramEnabled, setTelegramEnabled] = useState(false);
+
   useEffect(() => {
     if (isOpen && config) {
       setToken(config.apiToken || '');
@@ -189,6 +197,10 @@ export function OptionsModal({
       setSmtpPassword(smtp.password || '');
       setSmtpFromName(smtp.fromName || '');
       setSmtpSsl(smtp.ssl !== undefined ? smtp.ssl : true);
+      const telegram = config.telegramConfig || {};
+      setTelegramBotToken(telegram.botToken || '');
+      setTelegramChatId(telegram.chatId || '');
+      setTelegramEnabled(!!telegram.enabled);
     }
   }, [isOpen, config]);
 
@@ -309,6 +321,25 @@ export function OptionsModal({
     if (!smtpTestEmail.trim()) return;
     onTestSmtp({ ...buildSmtpConfig(), testEmail: smtpTestEmail.trim() });
     setSmtpTestMode(false);
+  };
+
+  const handleTelegramSave = () => {
+    onSaveTelegram({
+      botToken: telegramBotToken.trim(),
+      chatId: telegramChatId.trim(),
+      enabled: telegramEnabled,
+    });
+  };
+
+  const handleTelegramToggle = () => {
+    const nextEnabled = !telegramEnabled;
+    onSaveTelegram({
+      botToken: telegramBotToken.trim(),
+      chatId: telegramChatId.trim(),
+      enabled: nextEnabled,
+    });
+    setTelegramEnabled(nextEnabled);
+    onToggleTelegramBot(nextEnabled);
   };
 
   return (
@@ -920,6 +951,68 @@ export function OptionsModal({
                 className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
               >
                 {t('settings.smtp.save')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Telegram Tab */}
+        {activeTab === 'telegram' && (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.telegram.botToken')}
+              </label>
+              <input
+                type="password"
+                value={telegramBotToken}
+                onChange={(e) => setTelegramBotToken(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm"
+                placeholder={t('settings.telegram.botTokenPlaceholder')}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {t('settings.telegram.chatId')}
+              </label>
+              <input
+                type="text"
+                value={telegramChatId}
+                onChange={(e) => setTelegramChatId(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-sm font-mono"
+                placeholder={t('settings.telegram.chatIdPlaceholder')}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {t('settings.telegram.chatIdHint')}
+              </p>
+            </div>
+
+            <div className={`rounded-lg border px-4 py-3 text-sm ${
+              telegramEnabled
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-gray-200 bg-gray-50 text-gray-600'
+            }`}>
+              {telegramEnabled ? t('settings.telegram.statusEnabled') : t('settings.telegram.statusDisabled')}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleTelegramSave}
+                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition"
+              >
+                {t('settings.telegram.save')}
+              </button>
+              <button
+                onClick={handleTelegramToggle}
+                disabled={!telegramBotToken.trim() || !telegramChatId.trim()}
+                className={`flex-1 font-medium py-2 px-4 rounded-lg transition ${
+                  telegramEnabled
+                    ? 'bg-red-50 hover:bg-red-100 text-red-700 border border-red-300'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {telegramEnabled ? t('settings.telegram.disable') : t('settings.telegram.enable')}
               </button>
             </div>
           </div>

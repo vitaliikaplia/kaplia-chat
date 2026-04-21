@@ -57,6 +57,9 @@ let messageLoadConfig = { adminMessagesLimit: 20, widgetMessagesLimit: 20 };
 let adminLanguage = 'uk';
 let businessHoursConfig = {};
 let smtpConfig = { host: '', port: '', user: '', password: '', fromName: '', ssl: true };
+let telegramConfig = { botToken: '', chatId: '', enabled: 0, lastUpdateId: 0 };
+let telegramPollInFlight = false;
+let telegramPollTimeout = null;
 
 // Rate limiting storage: Map<sessionId, { timestamps: number[] }>
 const rateLimitMap = new Map();
@@ -130,6 +133,13 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function escapeTelegramHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function getWidgetBusinessHours() {
     const hours = {};
     const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -182,7 +192,11 @@ db.serialize(() => {
                                                   log_page_visits INTEGER DEFAULT 1,
                                                   allowed_origins TEXT DEFAULT '',
                                                   allowed_anonymous_origins TEXT DEFAULT '',
-                                                  admin_language TEXT DEFAULT 'uk'
+                                                  admin_language TEXT DEFAULT 'uk',
+                                                  telegram_bot_token TEXT DEFAULT '',
+                                                  telegram_chat_id TEXT DEFAULT '',
+                                                  telegram_enabled INTEGER DEFAULT 0,
+                                                  telegram_last_update_id INTEGER DEFAULT 0
             )`);
 
     db.run(`CREATE TABLE IF NOT EXISTS messages (
@@ -197,6 +211,13 @@ db.serialize(() => {
                                                     session_id TEXT PRIMARY KEY,
                                                     metadata TEXT,
                                                     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS telegram_threads (
+                                                           session_id TEXT PRIMARY KEY,
+                                                           thread_id INTEGER UNIQUE,
+                                                           topic_name TEXT,
+                                                           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )`);
 
     db.get("SELECT * FROM admins WHERE username = ?", ['admin'], (err, row) => {
@@ -225,6 +246,10 @@ db.serialize(() => {
             adminLanguage = row.admin_language || 'uk';
             try { businessHoursConfig = row.business_hours ? JSON.parse(row.business_hours) : {}; } catch { businessHoursConfig = {}; }
             try { smtpConfig = row.smtp_config ? JSON.parse(row.smtp_config) : smtpConfig; } catch { /* keep default */ }
+            telegramConfig.botToken = row.telegram_bot_token || '';
+            telegramConfig.chatId = row.telegram_chat_id || '';
+            telegramConfig.enabled = row.telegram_enabled || 0;
+            telegramConfig.lastUpdateId = row.telegram_last_update_id || 0;
 
             db.all("PRAGMA table_info(admins)", (err, columns) => {
                 const colNames = columns.map(c => c.name);
@@ -250,7 +275,19 @@ db.serialize(() => {
                 if (!colNames.includes('admin_language')) db.run("ALTER TABLE admins ADD COLUMN admin_language TEXT DEFAULT 'uk'");
                 if (!colNames.includes('business_hours')) db.run("ALTER TABLE admins ADD COLUMN business_hours TEXT DEFAULT ''");
                 if (!colNames.includes('smtp_config')) db.run("ALTER TABLE admins ADD COLUMN smtp_config TEXT DEFAULT ''");
+                if (!colNames.includes('telegram_bot_token')) db.run("ALTER TABLE admins ADD COLUMN telegram_bot_token TEXT DEFAULT ''");
+                if (!colNames.includes('telegram_chat_id')) db.run("ALTER TABLE admins ADD COLUMN telegram_chat_id TEXT DEFAULT ''");
+                if (!colNames.includes('telegram_enabled')) db.run("ALTER TABLE admins ADD COLUMN telegram_enabled INTEGER DEFAULT 0");
+                if (!colNames.includes('telegram_last_update_id')) db.run("ALTER TABLE admins ADD COLUMN telegram_last_update_id INTEGER DEFAULT 0");
             });
+
+            if (telegramConfig.enabled && telegramConfig.botToken && telegramConfig.chatId) {
+                setTimeout(() => {
+                    startTelegramBot(false).catch((error) => {
+                        console.error('Telegram startup error:', error.message);
+                    });
+                }, 0);
+            }
         }
     });
 });
@@ -343,6 +380,239 @@ function saveMessage(sessionId, sender, text, timestamp, callback) {
             if (!err && callback) callback(this.lastID);
         }
     );
+}
+
+function saveTelegramConfig(callback = () => {}) {
+    db.run(
+        `UPDATE admins
+         SET telegram_bot_token = ?, telegram_chat_id = ?, telegram_enabled = ?, telegram_last_update_id = ?
+         WHERE username = ?`,
+        [telegramConfig.botToken, telegramConfig.chatId, telegramConfig.enabled, telegramConfig.lastUpdateId, 'admin'],
+        callback
+    );
+}
+
+function getTelegramTopicName(sessionId, metadata = {}) {
+    const rawName = metadata.user_name || metadata.name || metadata.user_email || metadata.user_id || sessionId;
+    return String(rawName).trim().slice(0, 120) || sessionId;
+}
+
+function getTelegramMessageBody(sessionId, message, metadata = {}) {
+    const details = [];
+    if (metadata.user_session) details.push(`Session: ${escapeTelegramHtml(metadata.user_session)}`);
+    if (metadata.user_id) details.push(`ID: ${escapeTelegramHtml(metadata.user_id)}`);
+    if (metadata.user_email) details.push(`Email: ${escapeTelegramHtml(metadata.user_email)}`);
+
+    const lines = [escapeTelegramHtml(message)];
+    if (details.length > 0) {
+        lines.push('', '---', ...details);
+    }
+    return lines.join('\n');
+}
+
+function callTelegramApi(method, payload = {}) {
+    if (!telegramConfig.botToken) {
+        throw new Error('Telegram bot token is not configured');
+    }
+
+    return fetch(`https://api.telegram.org/bot${telegramConfig.botToken}/${method}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+            throw new Error(data.description || `Telegram API error (${response.status})`);
+        }
+        return data.result;
+    });
+}
+
+function getTelegramThreadBySession(sessionId) {
+    return new Promise((resolve, reject) => {
+        db.get("SELECT thread_id FROM telegram_threads WHERE session_id = ?", [sessionId], (err, row) => {
+            if (err) reject(err);
+            else resolve(row ? row.thread_id : null);
+        });
+    });
+}
+
+function getSessionIdByTelegramThread(threadId) {
+    return new Promise((resolve, reject) => {
+        db.get("SELECT session_id FROM telegram_threads WHERE thread_id = ?", [threadId], (err, row) => {
+            if (err) reject(err);
+            else resolve(row ? row.session_id : null);
+        });
+    });
+}
+
+function saveTelegramThreadMapping(sessionId, threadId, topicName) {
+    return new Promise((resolve, reject) => {
+        db.run(
+            `INSERT INTO telegram_threads (session_id, thread_id, topic_name, created_at)
+             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+             ON CONFLICT(session_id) DO UPDATE SET thread_id = excluded.thread_id, topic_name = excluded.topic_name`,
+            [sessionId, threadId, topicName],
+            (err) => {
+                if (err) reject(err);
+                else resolve();
+            }
+        );
+    });
+}
+
+async function createTelegramThread(sessionId, metadata = {}) {
+    const topicName = getTelegramTopicName(sessionId, metadata);
+    const result = await callTelegramApi('createForumTopic', {
+        chat_id: telegramConfig.chatId,
+        name: topicName
+    });
+    await saveTelegramThreadMapping(sessionId, result.message_thread_id, topicName);
+    return result.message_thread_id;
+}
+
+async function getOrCreateTelegramThread(sessionId, metadata = {}) {
+    const existingThreadId = await getTelegramThreadBySession(sessionId);
+    if (existingThreadId) {
+        return existingThreadId;
+    }
+    return createTelegramThread(sessionId, metadata);
+}
+
+async function sendTelegramMessage(sessionId, message, metadata = {}) {
+    if (!telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId || !message) {
+        return;
+    }
+
+    let threadId = await getOrCreateTelegramThread(sessionId, metadata);
+    const payload = {
+        chat_id: telegramConfig.chatId,
+        message_thread_id: threadId,
+        text: getTelegramMessageBody(sessionId, message, metadata),
+        parse_mode: 'HTML'
+    };
+
+    try {
+        await callTelegramApi('sendMessage', payload);
+    } catch (error) {
+        if (String(error.message || '').includes('message thread not found')) {
+            await saveTelegramThreadMapping(sessionId, null, getTelegramTopicName(sessionId, metadata)).catch(() => {});
+            threadId = await createTelegramThread(sessionId, metadata);
+            await callTelegramApi('sendMessage', { ...payload, message_thread_id: threadId });
+            return;
+        }
+        throw error;
+    }
+}
+
+function scheduleTelegramPoll(delayMs = 1000) {
+    if (!telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId) {
+        return;
+    }
+    if (telegramPollTimeout) {
+        clearTimeout(telegramPollTimeout);
+    }
+    telegramPollTimeout = setTimeout(() => {
+        telegramPollTimeout = null;
+        pollTelegramUpdates().catch((error) => {
+            console.error('Telegram poll error:', error.message);
+            scheduleTelegramPoll(5000);
+        });
+    }, delayMs);
+}
+
+async function syncTelegramCursor() {
+    if (!telegramConfig.botToken) return;
+    const result = await callTelegramApi('getUpdates', {
+        timeout: 0,
+        limit: 100,
+        allowed_updates: ['message']
+    });
+    if (Array.isArray(result) && result.length > 0) {
+        telegramConfig.lastUpdateId = result[result.length - 1].update_id;
+        await new Promise((resolve) => saveTelegramConfig(resolve));
+    }
+}
+
+function stopTelegramBot() {
+    telegramConfig.enabled = 0;
+    telegramPollInFlight = false;
+    if (telegramPollTimeout) {
+        clearTimeout(telegramPollTimeout);
+        telegramPollTimeout = null;
+    }
+    return new Promise((resolve) => saveTelegramConfig(resolve));
+}
+
+async function processTelegramUpdate(update) {
+    const message = update && update.message;
+    if (!message || !message.chat || !message.message_thread_id || !message.text) {
+        return;
+    }
+    if (String(message.chat.id) !== String(telegramConfig.chatId)) {
+        return;
+    }
+    if (message.from && message.from.is_bot) {
+        return;
+    }
+
+    const targetId = await getSessionIdByTelegramThread(message.message_thread_id);
+    if (!targetId) {
+        return;
+    }
+
+    const text = String(message.text || '').trim();
+    if (!text) {
+        return;
+    }
+
+    const timestamp = new Date((message.date || Math.floor(Date.now() / 1000)) * 1000).toISOString();
+    saveMessage(targetId, 'support', text, timestamp, (newId) => {
+        sendToUserTabs(targetId, { text, sender: 'support', timestamp, id: newId });
+        broadcastToAdmins({ type: 'admin_msg_sent', targetId, text, timestamp, id: newId });
+    });
+}
+
+async function pollTelegramUpdates() {
+    if (!telegramConfig.enabled || !telegramConfig.botToken || !telegramConfig.chatId || telegramPollInFlight) {
+        return;
+    }
+
+    telegramPollInFlight = true;
+    try {
+        const updates = await callTelegramApi('getUpdates', {
+            offset: (telegramConfig.lastUpdateId || 0) + 1,
+            timeout: 50,
+            allowed_updates: ['message']
+        });
+
+        if (Array.isArray(updates) && updates.length > 0) {
+            for (const update of updates) {
+                telegramConfig.lastUpdateId = update.update_id;
+                await processTelegramUpdate(update);
+            }
+            await new Promise((resolve) => saveTelegramConfig(resolve));
+        }
+    } finally {
+        telegramPollInFlight = false;
+    }
+
+    scheduleTelegramPoll(0);
+}
+
+async function startTelegramBot(skipBacklog = false) {
+    if (!telegramConfig.botToken || !telegramConfig.chatId) {
+        throw new Error('Заповніть Telegram bot token та chat ID');
+    }
+
+    await callTelegramApi('deleteWebhook', { drop_pending_updates: false });
+    if (skipBacklog) {
+        await syncTelegramCursor();
+    }
+
+    telegramConfig.enabled = 1;
+    await new Promise((resolve) => saveTelegramConfig(resolve));
+    scheduleTelegramPoll(0);
 }
 
 // Check if this event should be deduplicated (same event too recently)
@@ -634,7 +904,8 @@ wss.on('connection', (ws, req) => {
                     widgetMessagesLimit: messageLoadConfig.widgetMessagesLimit,
                     language: adminLanguage,
                     businessHours: businessHoursConfig,
-                    smtpConfig: smtpConfig
+                    smtpConfig: smtpConfig,
+                    telegramConfig: telegramConfig
                 }));
 
                 getAllSessions((rows) => {
@@ -807,6 +1078,39 @@ wss.on('connection', (ws, req) => {
                                 smtpConfig = cfg;
                                 ws.send(JSON.stringify({ type: 'system', text: 'SMTP збережено!' }));
                             });
+                        }
+
+                        if (data.type === 'update_telegram_settings') {
+                            telegramConfig.botToken = (data.telegramConfig?.botToken || '').trim();
+                            telegramConfig.chatId = String(data.telegramConfig?.chatId || '').trim();
+                            saveTelegramConfig(() => {
+                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig });
+                                ws.send(JSON.stringify({ type: 'system', text: 'Telegram налаштування збережено!' }));
+                            });
+                        }
+
+                        if (data.type === 'toggle_telegram_bot') {
+                            const shouldEnable = !!data.enabled;
+                            const finalize = (messageText) => {
+                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig });
+                                ws.send(JSON.stringify({ type: 'system', text: messageText }));
+                            };
+
+                            if (shouldEnable) {
+                                startTelegramBot(true)
+                                    .then(() => finalize('Telegram бот увімкнено!'))
+                                    .catch((error) => {
+                                        console.error('Telegram start error:', error.message);
+                                        ws.send(JSON.stringify({ type: 'system', text: `Telegram помилка: ${error.message}` }));
+                                    });
+                            } else {
+                                stopTelegramBot()
+                                    .then(() => finalize('Telegram бот вимкнено!'))
+                                    .catch((error) => {
+                                        console.error('Telegram stop error:', error.message);
+                                        ws.send(JSON.stringify({ type: 'system', text: `Telegram помилка: ${error.message}` }));
+                                    });
+                            }
                         }
 
                         if (data.type === 'test_smtp') {
@@ -1188,6 +1492,9 @@ wss.on('connection', (ws, req) => {
                             const meta = clientInfo.get(userId);
                             sendWebhook(userId, adminText, meta, timestamp);
                             broadcastToAdmins({ type: 'client_msg', from: userId, text: adminText, info: meta, timestamp, id: msgId });
+                            sendTelegramMessage(userId, adminText, meta).catch((error) => {
+                                console.error('Telegram send error:', error.message);
+                            });
                         });
                     });
                 }
@@ -1210,6 +1517,9 @@ wss.on('connection', (ws, req) => {
                 saveMessage(userId, 'client', parsed.text, timestamp, (newId) => {
                     const meta = clientInfo.get(userId);
                     sendWebhook(userId, parsed.text, meta, timestamp);
+                    sendTelegramMessage(userId, parsed.text, meta).catch((error) => {
+                        console.error('Telegram send error:', error.message);
+                    });
 
                     broadcastToAdmins({ type: 'client_msg', from: userId, text: parsed.text, info: meta, timestamp: timestamp, id: newId });
 
@@ -1259,4 +1569,6 @@ wss.on('connection', (ws, req) => {
     });
 });
 
-server.listen(8080, () => { console.log('Chat Server running on port 8080'); });
+server.listen(8080, () => {
+    console.log('Chat Server running on port 8080');
+});

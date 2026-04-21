@@ -87,6 +87,7 @@
       "sound": "Sound",
       "messages": "Messages",
       "spam": "Spam",
+      "telegram": "Telegram",
       "other": "Other",
       "widget": "Widget",
       "schedule": "Schedule"
@@ -185,6 +186,18 @@
       "send": "Send",
       "testEmail": "Email for test message",
       "save": "Save"
+    },
+    "telegram": {
+      "botToken": "Telegram bot token",
+      "botTokenPlaceholder": "123456:ABC-DEF...",
+      "chatId": "Telegram chat ID",
+      "chatIdPlaceholder": "-1001234567890",
+      "chatIdHint": "Enter the group or supergroup ID with topics enabled.",
+      "statusEnabled": "The bot is listening to this chat and forwarding topic replies back to the widget.",
+      "statusDisabled": "The bot is disabled. Telegram replies are not synced back to the chat.",
+      "save": "Save",
+      "enable": "Enable bot for chat",
+      "disable": "Disable bot for chat"
     },
     "schedule": {
       "title": "Business hours",
