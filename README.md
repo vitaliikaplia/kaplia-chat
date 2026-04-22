@@ -50,7 +50,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Session Management**: View detailed user metadata, System Session IDs, and delete entire chat sessions.
 - **Clear Activity Log**: One-click button to delete all system messages from a chat.
 - **Customization**: Configure admin passwords, API tokens, and Webhook settings directly from the UI.
-- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, Schedule, SMTP, CORS, Anonymous domains, Widget) in one modal with tabs.
+- **Consolidated Settings**: All settings (Password, API Token, Webhook, Time, Sound, Messages, Spam, Schedule, SMTP, Telegram, CORS, Anonymous domains, Widget) in one modal with tabs.
 - **Multiple Admin Connections**: Multiple admins (or admin tabs/devices) can be connected simultaneously. All receive real-time message updates, typing indicators, and user list changes.
 - **Search**: Search chats by user name, email, or message text with debounced input and loading animation.
 - **Last Message Preview**: Shows last message text and time under each contact name in the sidebar (like Telegram/WhatsApp), with "You:" prefix for admin messages.
@@ -63,6 +63,10 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Business Hours (Schedule)**: Configure working days and hours per day with enabled/disabled toggle and time ranges (00:00–23:30 in 30-min increments). Used by the widget to determine when to show the offline contact form.
 - **SMTP Settings**: Configure outgoing email (host, port, user, password, from name, SSL/TLS toggle). Includes a test email feature with a custom recipient address. Used for offline contact form submissions.
 - **Notification Emails**: Configure recipient email addresses in the Schedule tab (one per line). When a visitor submits the offline contact form, emails are sent to these addresses via SMTP.
+- **Built-in Telegram Bridge**: Forward website chat messages directly to a Telegram forum supergroup without n8n or an external mapping service.
+- **Telegram Topic Mapping**: The server automatically creates a dedicated Telegram forum topic per chat session and stores the `session_id <-> thread_id` mapping in SQLite.
+- **Reply Sync from Telegram**: Replies posted in a Telegram topic are pulled back into the corresponding website chat through the bot.
+- **Telegram Settings Tab**: Configure bot token, target chat ID, and enable/disable the Telegram bridge directly from the Admin Panel.
 
 ### Spam Protection
 - **Rate Limiting**: Configure maximum messages per minute per user (default: 20).
@@ -341,9 +345,39 @@ For a full working example of how to embed and configure the chat widget, refer 
 
 ## Use Cases & Integrations
 
+### Built-in Telegram Integration
+
+The chat now supports a direct Telegram bridge built into the server. This lets you manage website conversations from a Telegram forum supergroup without n8n and without a separate external service for storing topic mappings.
+
+**How it works**
+
+1. A visitor sends a message in the website chat.
+2. The server creates a Telegram forum topic for that chat session if it does not exist yet.
+3. The message is sent into that Telegram topic together with the visitor context.
+4. When an agent replies inside the same Telegram topic, the bot receives that reply and sends it back into the correct website chat session.
+
+**Requirements**
+
+- A Telegram bot token
+- A Telegram supergroup with forum topics enabled
+- The bot must be an admin in that chat
+- The bot must have permission to manage topics
+
+**Setup**
+
+1. Open the Admin Panel.
+2. Go to `Settings -> Telegram`.
+3. Enter the bot token.
+4. Enter the target Telegram chat ID.
+5. Enable the Telegram bot for that chat.
+
+The server validates the chat type and the bot permissions when enabling the integration. If something is configured incorrectly, the Admin Panel shows the Telegram API error message.
+
 ### Integration with n8n (or other automation tools)
 
 This chat widget is perfect for building automated support workflows with platforms like **n8n**, Zapier, or Make. By combining Webhooks and the REST API, you can create a seamless, real-time bridge between your website visitors and your backend systems, such as a support team on Telegram.
+
+If you only need a Telegram support bridge, prefer the built-in Telegram integration above. Webhooks + REST API are still useful for CRMs, custom automations, AI pipelines, and external workflow tools.
 
 **Example Workflow: Website Chat -> n8n -> Telegram**
 
