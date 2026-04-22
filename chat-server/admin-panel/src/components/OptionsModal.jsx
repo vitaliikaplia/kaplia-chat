@@ -336,7 +336,6 @@ export function OptionsModal({
     onSaveTelegram({
       botToken: telegramBotToken.trim(),
       chatId: telegramChatId.trim(),
-      enabled: telegramEnabled,
     });
   };
 

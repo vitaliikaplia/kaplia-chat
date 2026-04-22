@@ -250,8 +250,13 @@ function AppContent() {
   };
 
   const handleSaveTelegram = (telegramCfg) => {
-    updateTelegramSettings(telegramCfg);
-    setConfig({ telegramConfig: { ...state.config.telegramConfig, ...telegramCfg } });
+    const nextTelegramConfig = {
+      ...state.config.telegramConfig,
+      botToken: telegramCfg.botToken,
+      chatId: telegramCfg.chatId,
+    };
+    updateTelegramSettings(nextTelegramConfig);
+    setConfig({ telegramConfig: nextTelegramConfig });
   };
 
   const handleToggleTelegramBot = (enabled) => {

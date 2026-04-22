@@ -394,6 +394,15 @@ function saveTelegramConfig(callback = () => {}) {
     );
 }
 
+function getMaskedTelegramConfig() {
+    return {
+        botToken: telegramConfig.botToken || '',
+        chatId: telegramConfig.chatId || '',
+        enabled: !!telegramConfig.enabled,
+        lastUpdateId: telegramConfig.lastUpdateId || 0
+    };
+}
+
 function getTelegramTopicName(sessionId, metadata = {}) {
     const rawName = metadata.user_name || metadata.name || metadata.user_email || metadata.user_id || sessionId;
     return String(rawName).trim().slice(0, 120) || sessionId;
@@ -503,6 +512,7 @@ async function sendTelegramMessage(sessionId, message, metadata = {}) {
             await callTelegramApi('sendMessage', { ...payload, message_thread_id: threadId });
             return;
         }
+        broadcastToAdmins({ type: 'system', text: `Telegram помилка: ${error.message}` });
         throw error;
     }
 }
@@ -605,6 +615,22 @@ async function pollTelegramUpdates() {
 async function startTelegramBot(skipBacklog = false) {
     if (!telegramConfig.botToken || !telegramConfig.chatId) {
         throw new Error('Заповніть Telegram bot token та chat ID');
+    }
+
+    const me = await callTelegramApi('getMe');
+    const chat = await callTelegramApi('getChat', { chat_id: telegramConfig.chatId });
+    if (!chat || !chat.is_forum) {
+        throw new Error('Вказаний Telegram chat ID має бути форум-супергрупою з увімкненими темами');
+    }
+
+    const member = await callTelegramApi('getChatMember', {
+        chat_id: telegramConfig.chatId,
+        user_id: me.id
+    });
+    const memberStatus = member && member.status;
+    const canManageTopics = memberStatus === 'creator' || memberStatus === 'administrator' && member.can_manage_topics;
+    if (!canManageTopics) {
+        throw new Error('Бот має бути адміном чату з правом керування темами');
     }
 
     await callTelegramApi('deleteWebhook', { drop_pending_updates: false });
@@ -907,7 +933,7 @@ wss.on('connection', (ws, req) => {
                     language: adminLanguage,
                     businessHours: businessHoursConfig,
                     smtpConfig: smtpConfig,
-                    telegramConfig: telegramConfig
+                    telegramConfig: getMaskedTelegramConfig()
                 }));
 
                 getAllSessions((rows) => {
@@ -1086,7 +1112,7 @@ wss.on('connection', (ws, req) => {
                             telegramConfig.botToken = (data.telegramConfig?.botToken || '').trim();
                             telegramConfig.chatId = String(data.telegramConfig?.chatId || '').trim();
                             saveTelegramConfig(() => {
-                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig });
+                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig: getMaskedTelegramConfig() });
                                 ws.send(JSON.stringify({ type: 'system', text: 'Telegram налаштування збережено!' }));
                             });
                         }
@@ -1094,7 +1120,7 @@ wss.on('connection', (ws, req) => {
                         if (data.type === 'toggle_telegram_bot') {
                             const shouldEnable = !!data.enabled;
                             const finalize = (messageText) => {
-                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig });
+                                broadcastToAdmins({ type: 'telegram_updated', telegramConfig: getMaskedTelegramConfig() });
                                 ws.send(JSON.stringify({ type: 'system', text: messageText }));
                             };
 
