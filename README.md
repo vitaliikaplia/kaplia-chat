@@ -211,6 +211,12 @@ Configure Nginx to handle SSL and forward traffic, including WebSocket connectio
     npm install ws express sqlite3 bcryptjs maxmind nodemailer
     ```
 
+    The SQLite database file `chat.db` is **not** included in the repository on purpose. It is created automatically by the server on the first start, together with the required tables and the default admin account.
+
+    Important:
+    - Start the server from the `chat-server` working directory (or from the directory where `index.js` is located), because the database path is resolved as `./chat.db`.
+    - Do not copy someone else's `chat.db` into production unless you intentionally want to migrate existing chat data.
+
 3.  **Add GeoIP databases** (optional, for anonymous user geolocation):
     ```bash
     mkdir geo
@@ -231,6 +237,8 @@ Use [PM2](https://pm2.keymetrics.io/), a process manager for Node.js, to keep yo
     # Replace index.js with your main application file
     pm2 start index.js --name "chat-widget"
     ```
+
+    On the first launch, this will automatically create `chat.db` if it does not exist yet.
 
 3.  **Enable PM2 to start on server reboot**:
     ```bash
