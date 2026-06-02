@@ -413,6 +413,7 @@ function getTelegramMessageBody(sessionId, message, metadata = {}) {
     if (metadata.user_session) details.push(`Session: ${escapeTelegramHtml(metadata.user_session)}`);
     if (metadata.user_id) details.push(`ID: ${escapeTelegramHtml(metadata.user_id)}`);
     if (metadata.user_email) details.push(`Email: ${escapeTelegramHtml(metadata.user_email)}`);
+    if (metadata.current_url) details.push(`Page: ${escapeTelegramHtml(metadata.current_url)}`);
 
     const lines = [escapeTelegramHtml(message)];
     if (details.length > 0) {
@@ -1528,6 +1529,14 @@ wss.on('connection', (ws, req) => {
                 }
             }
             if (parsed.text) {
+                if (parsed.pageUrl) {
+                    const existingMeta = clientInfo.get(userId) || {};
+                    const updatedMeta = { ...existingMeta, current_url: String(parsed.pageUrl).slice(0, 2000) };
+                    clientInfo.set(userId, updatedMeta);
+                    updateSessionInfo(userId, updatedMeta);
+                    broadcastToAdmins({ type: 'user_info_update', id: userId, info: { current_url: updatedMeta.current_url } });
+                }
+
                 // Validate message
                 const validation = validateMessage(parsed.text);
                 if (!validation.valid) {

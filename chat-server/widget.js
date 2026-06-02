@@ -294,9 +294,9 @@
         ws.onopen = () => {
             // Send metadata: either from config (authenticated) or with saved name (anonymous)
             if (hasMetadata) {
-                ws.send(JSON.stringify({ type: 'client_info', metadata: config.metadata }));
+                ws.send(JSON.stringify({ type: 'client_info', metadata: { ...config.metadata, current_url: window.location.href } }));
             } else if (savedName) {
-                ws.send(JSON.stringify({ type: 'client_info', metadata: { user_name: savedName, user_id: sessionId, user_email: 'anonymous', lang: lang } }));
+                ws.send(JSON.stringify({ type: 'client_info', metadata: { user_name: savedName, user_id: sessionId, user_email: 'anonymous', lang: lang, current_url: window.location.href } }));
             }
             sendTabVisibility();
             sendPageUrl();
@@ -574,7 +574,7 @@
     function sendMessage() {
         const text = inp.value.trim();
         if (text && ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ text: text }));
+            ws.send(JSON.stringify({ text: text, pageUrl: window.location.href }));
             addMsg(text, 'me', new Date().toISOString());
             inp.value = '';
             ws.send(JSON.stringify({ type: 'typing_update', text: '' }));
