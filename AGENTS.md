@@ -24,6 +24,11 @@ npm run build    # Build to dist/
 pm2 restart chat-widget
 ```
 
+## Local Workflow Note
+- This project is not run locally during normal Codex work. Local files are edited only; functional testing is done by the user after deploy.
+- Do not start local dev servers or run broad local test workflows unless explicitly asked. Static checks such as `node --check` are okay when useful.
+- Admin panel is not built locally for deployment. Commit and push; the production deploy builds it on the server.
+
 ## Project Structure
 
 ```
@@ -33,7 +38,7 @@ kaplia-chat/
 │   ├── widget.js             # Client widget script
 │   ├── deploy-webhook.js     # GitHub webhook receiver (port 9000)
 │   ├── deploy.sh             # Auto-deploy shell script
-│   ├── .env                  # Telegram credentials (not in git)
+│   ├── .env                  # Deploy notification env vars (not in git)
 │   ├── chat.db               # SQLite database
 │   ├── geo/                  # MaxMind GeoIP databases
 │   │   ├── city.mmdb
@@ -48,7 +53,7 @@ kaplia-chat/
 │       └── dist/             # Production build (served by server)
 ├── chat-client/
 │   └── chat.html             # Example client integration
-├── CLAUDE.md                 # Project context for AI assistants
+├── AGENTS.md                 # Project context for AI assistants
 └── README.md
 ```
 
@@ -70,13 +75,13 @@ kaplia-chat/
 - `system_event` - Delayed system event saved to DB (tab_active/tab_inactive)
 - `chat_opened` / `chat_closed` - User opened/closed chat widget
 - `page_visit` - User navigated to a page (includes URL)
+- visitor chat messages may include `pageUrl` - current page URL at the moment the message was sent
 - `admin_update_user` - Admin edits user name/notes (saves to clientInfo + SQLite)
 - `reset_chat` - Admin deleted session, widget resets (new sessionId for anonymous)
 - `search_chats` / `search_results` - Search by name, email, message text (debounced, min 2 chars)
 
 ### Database Tables
-- `config` - Key-value settings (password, token, webhook, rate limits, etc.)
-- `admins` - Admin accounts (username, password_hash, business_hours JSON, smtp_config JSON, telegram config)
+- `admins` - Admin account and global settings (username, password_hash, api_token, webhook, CORS, rate/message limits, business_hours JSON, smtp_config JSON, Telegram config, admin_language)
 - `sessions` - User sessions with metadata (includes `current_url` for page tracking)
 - `messages` - Chat messages (sender: 'client' | 'support' | 'system')
   - System messages have `text` like: `user_connected`, `user_left`, `tab_active`, `tab_inactive`, `chat_opened`, `chat_closed`, `page_visit:URL`
@@ -87,7 +92,7 @@ kaplia-chat/
 - `useWebSocket` - WebSocket connection, auto-reconnect, sound notifications, `updateUserInfoFromAdmin()`
 - `I18nProvider` - Internationalization context (uk, en, ru languages)
 - Settings stored in `localStorage`: `kaplia_admin_pass`, `kaplia_sound_enabled`, `kaplia_sound_type`, `kaplia_notifications_enabled`, `kaplia_widget_config`
-- Language stored in database (`admin_language` column in config table)
+- Language stored in database (`admin_language` column in `admins` table)
 - Telegram bridge config is loaded via `auth_success` and managed from the Settings modal
 
 ### Key Admin Components
@@ -144,7 +149,6 @@ Server uses delayed logging to distinguish page navigation from real events:
 - Mobile responsive design with swipe gestures
 - Anonymous users support (separate domain list, lazy WebSocket connect)
 - Anonymous name form (widget asks for name, sends to server)
-- Anonymous name generator (deterministic Ukrainian adjective + animal, e.g. "Смілива Коала")
 - Welcome messages for new anonymous users (personalized greeting + admin notification)
 - Anonymous session reset (new sessionId on admin delete, no auto-reconnect)
 - GeoIP detection via MaxMind (country, region, city, IP)
@@ -162,6 +166,7 @@ Server uses delayed logging to distinguish page navigation from real events:
 - Offline contact form in widget (shown outside business hours: name, email, phone, message → email via SMTP with GeoIP, device info, page URL)
 - Notification emails config in Schedule tab (one email per line, used for offline form submissions)
 - Built-in Telegram bridge: chat messages can be forwarded directly to a Telegram forum supergroup without n8n
+- Telegram message details include visitor context: `Session`, `ID`, `Email`, and `Page` URL from the exact page where the message was sent
 - Telegram forum topic auto-creation per chat session (`session_id -> thread_id` mapping in SQLite)
 - Telegram replies from a forum topic are pulled back into the website chat via bot polling
 - Telegram settings tab in admin panel (bot token, target chat ID, enable/disable bridge)

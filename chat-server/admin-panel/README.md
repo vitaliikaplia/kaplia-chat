@@ -1,16 +1,40 @@
-# React + Vite
+# Kaplia Chat Admin Panel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite dashboard for Kaplia Chat support agents.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- React 19
+- Vite
+- Tailwind CSS
+- WebSocket connection to the main Node.js server
 
-## React Compiler
+## Commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+npm run build
+npm run lint
+```
 
-## Expanding the ESLint configuration
+The production deploy builds this app on the server through `chat-server/deploy.sh`. Do not rely on a locally generated `dist/` for deployment.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Main Files
+
+- `src/App.jsx` - authenticated app shell, modals, sidebar/chat layout, notification settings
+- `src/context/ChatContext.jsx` - global chat state, users, messages, config, notifications
+- `src/hooks/useWebSocket.js` - admin WebSocket protocol, reconnects, server message handling
+- `src/components/Sidebar.jsx` - chat list, online/tab indicators, search, edit/delete actions
+- `src/components/ChatArea.jsx` - active conversation, pagination, typing, activity log cleanup
+- `src/components/OptionsModal.jsx` - consolidated settings tabs including Telegram, SMTP, schedule, widget configurator
+- `src/components/WidgetConfigurator.jsx` - embed snippet and visual widget configuration
+- `src/i18n/` - Ukrainian, English, and Russian translations
+- `src/utils/` - date formatting, links, notification sounds, title flash, browser notifications
+
+## Runtime Notes
+
+- Admin authentication uses `kaplia_admin_pass` in `localStorage` for remember-me reconnects.
+- Server config arrives via `auth_success` and is merged into `ChatContext.config`.
+- Telegram settings are managed from the Telegram tab and stored server-side in the `admins` table.
+- Incoming visitor messages may include a `pageUrl`; the server stores it as `current_url`, which is shown in the chat header and forwarded to Telegram details as `Page`.

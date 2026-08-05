@@ -24,7 +24,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Real-time Communication**: Instant message delivery using WebSockets with synchronization across multiple user tabs.
 - **Spy Typing (Real-time Preview)**: Admins can see what users are typing in real-time before they hit send, allowing for faster responses.
 - **Origin/CORS Control**: Restrict widget usage to specific domains with wildcard support (e.g., `https://*.example.com`). Empty list allows all origins.
-- **Anonymous Users Support**: Separate domain list for anonymous (unauthenticated) visitors. On anonymous domains, WebSocket connects only when the chat widget is opened and disconnects when closed. No tab/page tracking events are sent for anonymous users.
+- **Anonymous Users Support**: Separate domain list for anonymous (unauthenticated) visitors. On anonymous domains, WebSocket connects only when the chat widget is opened and disconnects when closed. Tab visibility and page navigation system events are not tracked for anonymous users, but the current page URL is attached to chat metadata/messages for support context.
 - **GeoIP Detection**: Automatic server-side geolocation using MaxMind databases (city.mmdb, country.mmdb). Detects country, region, city, and IP address for anonymous users. Also parses User-Agent to determine platform (Windows, Mac, Linux, Android, iOS) and browser (Chrome, Firefox, Safari, Edge, Opera).
 
 ### Admin Panel (React + Vite)
@@ -63,7 +63,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 - **Business Hours (Schedule)**: Configure working days and hours per day with enabled/disabled toggle and time ranges (00:00–23:30 in 30-min increments). Used by the widget to determine when to show the offline contact form.
 - **SMTP Settings**: Configure outgoing email (host, port, user, password, from name, SSL/TLS toggle). Includes a test email feature with a custom recipient address. Used for offline contact form submissions.
 - **Notification Emails**: Configure recipient email addresses in the Schedule tab (one per line). When a visitor submits the offline contact form, emails are sent to these addresses via SMTP.
-- **Built-in Telegram Bridge**: Forward website chat messages directly to a Telegram forum supergroup without n8n or an external mapping service.
+- **Built-in Telegram Bridge**: Forward website chat messages directly to a Telegram forum supergroup without n8n or an external mapping service. Telegram message details include visitor context such as session, ID, email, and the page URL the visitor sent the message from.
 - **Telegram Topic Mapping**: The server automatically creates a dedicated Telegram forum topic per chat session and stores the `session_id <-> thread_id` mapping in SQLite.
 - **Reply Sync from Telegram**: Replies posted in a Telegram topic are pulled back into the corresponding website chat through the bot.
 - **Telegram Settings Tab**: Configure bot token, target chat ID, and enable/disable the Telegram bridge directly from the Admin Panel.
@@ -75,7 +75,7 @@ The system is also built to be highly extensible, allowing for powerful integrat
 
 ### Message Pagination
 - **Lazy Loading**: Messages load on scroll (both admin panel and widget).
-- **Configurable Limits**: Separate limits for admin panel and widget (default: 50 messages).
+- **Configurable Limits**: Separate limits for admin panel and widget (default: 20 messages).
 - **Smooth Scroll**: Scroll position preserved when loading older messages.
 
 ### Connection Stability
@@ -336,7 +336,8 @@ For public-facing websites where visitors are anonymous, omit the `metadata` fie
 For anonymous mode to work, add the website domain to **Settings -> Anonymous domains** in the Admin Panel. On anonymous domains:
 - WebSocket connects only when the user opens the chat widget (not on page load)
 - WebSocket disconnects when the user closes the chat widget
-- Tab visibility and page navigation events are not tracked
+- Tab visibility and page navigation system events are not tracked
+- The current page URL is still sent with `client_info` and each chat message so the Admin Panel and Telegram bridge can show where the message came from
 - GeoIP and User-Agent data is collected automatically on the server side
 
 ### Example Client Page
@@ -353,7 +354,7 @@ The chat now supports a direct Telegram bridge built into the server. This lets 
 
 1. A visitor sends a message in the website chat.
 2. The server creates a Telegram forum topic for that chat session if it does not exist yet.
-3. The message is sent into that Telegram topic together with the visitor context.
+3. The message is sent into that Telegram topic together with the visitor context: session, ID, email, and `Page` URL when available.
 4. When an agent replies inside the same Telegram topic, the bot receives that reply and sends it back into the correct website chat session.
 
 **Requirements**
@@ -606,13 +607,14 @@ Submits an offline contact form. The server validates the data and sends an emai
     "email": "john@example.com",
     "phone": "+1234567890",
     "message": "I have a question about your product.",
-    "lang": "en"
+    "lang": "en",
+    "pageUrl": "https://example.com/pricing"
 }
 ```
 
 **Responses**:
 -   **Success (200)**: `{ "status": "success" }`
--   **Validation Error (400)**: `{ "error": "invalid_data" }`
+-   **Validation Error (400)**: `{ "error": "invalid_name" }`, `{ "error": "invalid_email" }`, `{ "error": "invalid_phone" }`, or `{ "error": "invalid_message" }`
 -   **SMTP Not Configured (500)**: `{ "error": "smtp_not_configured" }`
 -   **No Recipients (500)**: `{ "error": "no_notification_emails" }`
 
@@ -656,7 +658,7 @@ chat-server/
 ├── widget.js             # Client-side chat widget
 ├── deploy-webhook.js     # GitHub webhook receiver (port 9000)
 ├── deploy.sh             # Auto-deploy shell script
-├── .env                  # Telegram bot token & chat ID (not in git)
+├── .env                  # Deploy notification env vars (not in git)
 ├── geo/                  # MaxMind GeoIP databases (optional)
 │   ├── city.mmdb
 │   └── country.mmdb
