@@ -1,5 +1,8 @@
 (function() {
-    const SERVER_URL = 'wss://chat.kaplia.pro';
+    const _origin = (document.currentScript && document.currentScript.src)
+      ? new URL(document.currentScript.src).origin
+      : location.origin;
+    const SERVER_URL = _origin.replace(/^http/, 'ws');
 
     const config = window.KapliaChatConfig || { defaultLanguage: 'ua', initialMessages: ["Привіт!"], i18n: { ua: { title: 'Чат', subtitle: '', inputPlaceholder: '...', sendBtn: 'Send' } }, metadata: {}, useAdminTimezone: false };
     const lang = config.defaultLanguage || 'en';
